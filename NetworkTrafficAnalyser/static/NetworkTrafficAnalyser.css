@@ -45,8 +45,35 @@ canvas {
   margin: 10px 0;
   cursor: pointer;
   border-radius: 5px;
+  align-self: center;
+  justify-self: center;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  text-align: center;
 }
 
 #export-btn:hover {
   background-color: #16a085;
+}
+
+#export-charts-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  margin: 10px 0;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#export-charts-btn:hover {
+  background-color: #2980b9;
+}
+
+#export-buttons {
+  display: flex;
+  justify-content: center;   /* Center horizontally */
+  gap: 20px;                 /* Space between buttons */
+  margin-top: 20px;
 }
