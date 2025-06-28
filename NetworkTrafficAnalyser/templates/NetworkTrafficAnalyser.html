@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Network Traffic Analyzer</title>
+  <link rel="stylesheet" href="{{url_for('static', filename='NetworkTrafficAnalyser.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>Network Traffic Analyzer</h1>
+  <p>Total Packets Displayed: <span id="packet-count">0</span></p>
+  <label for="protocolFilter">Protocol:</label>
+  <input type="text" id="protocolFilter" placeholder="e.g., TCP, udp, icmp" />
+
+<label for="srcFilter">Source IP:</label>
+<input type="text" id="srcFilter" placeholder="e.g., 192.168.1.1" />
+
+<label for="dstFilter">Destination IP:</label>
+<input type="text" id="dstFilter" placeholder="e.g., 8.8.8.8" />
+
+<div class="charts-container">
+  <canvas id="packetCountChart" ></canvas>
+  <canvas id="protocolChart" ></canvas>
+  <canvas id="protocolOverTimeChart" ></canvas>
+</div>
+<button id="export-btn">Export Table to CSV</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Source IP</th>
+        <th>Destination IP</th>
+        <th>Protocol</th>
+      </tr>
+    </thead>
+    <tbody id="packet-table"></tbody>
+  </table>
+  <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
+</body>
+</html>
