@@ -222,3 +222,18 @@ document.getElementById('export-btn').addEventListener('click', () => {
 
   URL.revokeObjectURL(url);
 });
+
+document.getElementById('export-charts-btn').addEventListener('click', () => {
+  const charts = [
+    { chart: packetChart, name: 'packet_over_time' },
+    { chart: protocolChart, name: 'protocol_distribution' },
+    { chart: protocolOverTimeChart, name: 'protocol_over_time' }
+  ];
+
+  charts.forEach(({ chart, name }) => {
+    const link = document.createElement('a');
+    link.href = chart.toBase64Image('image/png');
+    link.download = `${name}.png`;
+    link.click();
+  });
+});
