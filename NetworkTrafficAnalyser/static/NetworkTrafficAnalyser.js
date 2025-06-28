@@ -203,37 +203,27 @@ setInterval(() => {
     });
 }, 2000);
 
-document.getElementById('export-btn').addEventListener('click', () => {
-  const table = document.getElementById('packet-table');
-  let csv = 'Time,Source IP,Destination IP,Protocol\n';
-
-  Array.from(table.rows).forEach(row => {
-    const cells = Array.from(row.cells).map(cell => `"${cell.textContent.trim()}"`);
-    csv += cells.join(',') + '\n';
-  });
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'network_traffic_data.csv';
-  a.click();
-
-  URL.revokeObjectURL(url);
-});
-
 document.getElementById('export-charts-btn').addEventListener('click', () => {
-  const charts = [
-    { chart: packetChart, name: 'packet_over_time' },
-    { chart: protocolChart, name: 'protocol_distribution' },
-    { chart: protocolOverTimeChart, name: 'protocol_over_time' }
-  ];
+  const chart1 = document.getElementById('packetCountChart');
+  const chart2 = document.getElementById('protocolChart');
+  const chart3 = document.getElementById('protocolOverTimeChart');
 
-  charts.forEach(({ chart, name }) => {
-    const link = document.createElement('a');
-    link.href = chart.toBase64Image('image/png');
-    link.download = `${name}.png`;
-    link.click();
-  });
+  const width = Math.max(chart1.width, chart2.width, chart3.width);
+  const height = chart1.height + chart2.height + chart3.height;
+
+  const combinedCanvas = document.createElement('canvas');
+  combinedCanvas.width = width;
+  combinedCanvas.height = height;
+
+  const ctx = combinedCanvas.getContext('2d');
+
+  // Draw charts stacked vertically
+  ctx.drawImage(chart1, 0, 0);
+  ctx.drawImage(chart2, 0, chart1.height);
+  ctx.drawImage(chart3, 0, chart1.height + chart2.height);
+
+  const link = document.createElement('a');
+  link.download = 'combined_charts.png';
+  link.href = combinedCanvas.toDataURL('image/png');
+  link.click();
 });
