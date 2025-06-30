@@ -150,19 +150,21 @@ document.getElementById('export-charts-btn').addEventListener('click', () => {
 let monitoring = true;
 let intervalId = null;
 
-// Start/Resume
-document.getElementById('play-btn').addEventListener('click', () => {
-  if (!intervalId) {
-    intervalId = setInterval(updateChartsAndPackets, 2000);
-    monitoring = true;
-  }
-});
-
-// Pause
 document.getElementById('pause-btn').addEventListener('click', () => {
   clearInterval(intervalId);
   intervalId = null;
   monitoring = false;
+  fetch('/api/pause_monitoring', { method: 'POST' });
+});
+
+document.getElementById('play-btn').addEventListener('click', () => {
+  if (!intervalId) {
+    fetch('/api/start_monitoring', { method: 'POST' })
+      .then(() => {
+        intervalId = setInterval(updateChartsAndPackets, 2000);
+        monitoring = true;
+      });
+  }
 });
 
 // Stop (pause + clear charts)
@@ -183,25 +185,38 @@ document.getElementById('stop-btn').addEventListener('click', () => {
   protocolOverTimeChart.update();
 });
 
-// Restart (clear & start)
 document.getElementById('restart-btn').addEventListener('click', () => {
   clearInterval(intervalId);
   intervalId = null;
 
-  // Clear data
+  // Clear frontend state
   timeLabels.length = 0;
   packetCounts.length = 0;
   protocolHistory = {};
   protocolChart.data.labels = [];
   protocolChart.data.datasets[0].data = [];
   protocolOverTimeChart.data.datasets = [];
+  document.getElementById('packet-table').innerHTML = '';
+  document.getElementById('protocolFilter').value = '';
+  document.getElementById('srcFilter').value = '';
+  document.getElementById('dstFilter').value = '';
   packetChart.update();
   protocolChart.update();
   protocolOverTimeChart.update();
 
-  intervalId = setInterval(updateChartsAndPackets, 2000);
-  monitoring = true;
+  fetch('/api/reset', { method: 'POST' })
+    .then(() => {
+      // Start backend monitoring
+      return fetch('/api/start_monitoring', { method: 'POST' });
+    })
+    .then(() => {
+      updatePacketCount(); // Refresh UI
+      intervalId = setInterval(updateChartsAndPackets, 2000); // Restart polling
+    })
+    .catch(err => console.error('Error during restart process:', err));
 });
+
+
 
 function updateChartsAndPackets() {
   fetchPackets();

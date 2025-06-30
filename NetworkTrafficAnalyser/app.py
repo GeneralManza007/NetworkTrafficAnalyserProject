@@ -6,6 +6,7 @@ import time
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 captured_packets = []
+monitoring = True
 
 # Map protocol numbers to names
 proto_map = {0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6: "TCP", 7: "CBT", 8: "EGP", 9: "IGP", 10: "BBN-RCC-MON", 11: "NVP-II", 12: "PUP", 13: "ARGUS (deprecated)", 14: "EMCON", 15: "XNET", 16: "CHAOS", 17: "UDP", 18: "MUX", 19: "DCN-MEAS", 20: "HMP", 21: "PRM", 22: "XNS-IDP", 23: "TRUNK-1", 24: "TRUNK-2", 
@@ -25,8 +26,23 @@ proto_map = {0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6:
 
 total_packets = 0
 
+@app.route('/api/pause_monitoring', methods=['POST'])
+def pause_monitoring():
+    global monitoring
+    monitoring = False
+    return jsonify({'status': 'paused'})
+
+@app.route('/api/start_monitoring', methods=['POST'])
+def start_monitoring():
+    global monitoring
+    monitoring = True
+    return jsonify({'status': 'started'})
+
 def packet_callback(packet):
-    global total_packets
+    global total_packets, monitoring
+    if not monitoring:
+        return
+
     if IP in packet:
         proto_num = packet.proto
         proto_name = proto_map.get(proto_num, f"Unknown ({proto_num})")
@@ -52,6 +68,13 @@ def get_packets():
 @app.route("/api/packet_count")
 def get_packet_count():
     return jsonify({"total": total_packets})
+
+@app.route('/api/reset', methods=['POST'])
+def reset_packets():
+    global captured_packets, total_packets
+    captured_packets = []
+    total_packets = 0
+    return jsonify({"status": "reset"}), 200
 
 if __name__ == "__main__":
     Thread(target=start_sniffer, daemon=True).start()
