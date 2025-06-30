@@ -81,3 +81,25 @@ canvas {
   gap: 20px;              
   margin-top: 20px;
 }
+
+#control-buttons {
+  position: absolute;
+  top: 20px;
+  right: 5px;
+  display: flex;
+  gap: 10px;
+}
+
+#control-buttons button {
+  background-color: #444;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#control-buttons button:hover {
+  background-color: #666;
+}
