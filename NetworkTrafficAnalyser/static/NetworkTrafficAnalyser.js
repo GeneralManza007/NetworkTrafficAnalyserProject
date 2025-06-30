@@ -122,87 +122,6 @@ const protocolOverTimeChart = new Chart(protocolOverTimeCtx, {
   }
 });
 
-
-
-setInterval(() => {
-  fetchPackets();
-  updatePacketCount();
-
-  fetch('/api/packets')
-    .then(res => res.json())
-    .then(data => {
-      const now = new Date();
-      const label = now.toLocaleTimeString();
-
-      timeLabels.push(label);
-      if (timeLabels.length > 20) timeLabels.shift();
-
-      packetCounts.push(data.length);
-      if (packetCounts.length > 20) packetCounts.shift();
-      packetChart.update();
-
-      dynamicProtocolCounts = {}; // reset every interval
-
-      data.forEach(pkt => {
-        const proto = pkt.proto.toUpperCase();
-        if (!dynamicProtocolCounts[proto]) {
-          dynamicProtocolCounts[proto] = 0;
-        }
-        dynamicProtocolCounts[proto]++;
-      });
-
-      // Extract protocols and counts
-      const dynamicProtocols = Object.keys(dynamicProtocolCounts);
-      const dynamicCounts = Object.values(dynamicProtocolCounts);
-
-      // Generate colors if needed
-      const dynamicColors = dynamicProtocols.map((_, i) => {
-        const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22'];
-        return colors[i % colors.length]; // Reuse colors if many protocols
-      });
-
-      // Update chart
-      protocolChart.data.labels = dynamicProtocols;
-      protocolChart.data.datasets[0].data = dynamicCounts;
-      protocolChart.data.datasets[0].backgroundColor = dynamicColors;
-      protocolChart.update();
-
-     Object.keys(dynamicProtocolCounts).forEach(proto => {
-  if (!protocolHistory[proto]) {
-    protocolHistory[proto] = [];
-  }
-  protocolHistory[proto].push(dynamicProtocolCounts[proto]);
-
-  if (protocolHistory[proto].length > 20) {
-    protocolHistory[proto].shift();
-  }
-});
-
-      // Ensure all known protocols are extended with 0 if missing
-      Object.keys(protocolHistory).forEach(proto => {
-        if (!dynamicProtocolCounts[proto]) {
-          protocolHistory[proto].push(0);
-          if (protocolHistory[proto].length > 20) {
-            protocolHistory[proto].shift();
-          }
-        }
-      });
-
-      // Build datasets dynamically
-      const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22'];
-      const datasets = Object.keys(protocolHistory).map((proto, i) => ({
-        label: proto,
-        data: protocolHistory[proto],
-        borderColor: colors[i % colors.length],
-        backgroundColor: colors[i % colors.length] + '33', // slightly transparent
-        tension: 0.3
-      }));
-
-      protocolOverTimeChart.data.datasets = datasets;
-      protocolOverTimeChart.update();
-    });
-}, 2000);
-
 document.getElementById('export-charts-btn').addEventListener('click', () => {
   const chart1 = document.getElementById('packetCountChart');
   const chart2 = document.getElementById('protocolChart');
@@ -227,3 +146,139 @@ document.getElementById('export-charts-btn').addEventListener('click', () => {
   link.href = combinedCanvas.toDataURL('image/png');
   link.click();
 });
+
+let monitoring = true;
+let intervalId = null;
+
+// Start/Resume
+document.getElementById('play-btn').addEventListener('click', () => {
+  if (!intervalId) {
+    intervalId = setInterval(updateChartsAndPackets, 2000);
+    monitoring = true;
+  }
+});
+
+// Pause
+document.getElementById('pause-btn').addEventListener('click', () => {
+  clearInterval(intervalId);
+  intervalId = null;
+  monitoring = false;
+});
+
+// Stop (pause + clear charts)
+document.getElementById('stop-btn').addEventListener('click', () => {
+  clearInterval(intervalId);
+  intervalId = null;
+  monitoring = false;
+
+  // Clear data
+  timeLabels.length = 0;
+  packetCounts.length = 0;
+  protocolHistory = {};
+  protocolChart.data.labels = [];
+  protocolChart.data.datasets[0].data = [];
+  protocolOverTimeChart.data.datasets = [];
+  packetChart.update();
+  protocolChart.update();
+  protocolOverTimeChart.update();
+});
+
+// Restart (clear & start)
+document.getElementById('restart-btn').addEventListener('click', () => {
+  clearInterval(intervalId);
+  intervalId = null;
+
+  // Clear data
+  timeLabels.length = 0;
+  packetCounts.length = 0;
+  protocolHistory = {};
+  protocolChart.data.labels = [];
+  protocolChart.data.datasets[0].data = [];
+  protocolOverTimeChart.data.datasets = [];
+  packetChart.update();
+  protocolChart.update();
+  protocolOverTimeChart.update();
+
+  intervalId = setInterval(updateChartsAndPackets, 2000);
+  monitoring = true;
+});
+
+function updateChartsAndPackets() {
+  fetchPackets();
+  updatePacketCount();
+
+  fetch('/api/packets')
+    .then(res => res.json())
+    .then(data => {
+      const now = new Date();
+      const label = now.toLocaleTimeString();
+
+      // Update time and packet count
+      timeLabels.push(label);
+      if (timeLabels.length > 20) timeLabels.shift();
+
+      packetCounts.push(data.length);
+      if (packetCounts.length > 20) packetCounts.shift();
+      packetChart.update();
+
+      dynamicProtocolCounts = {}; // reset
+
+      data.forEach(pkt => {
+        const proto = pkt.proto.toUpperCase();
+        if (!dynamicProtocolCounts[proto]) {
+          dynamicProtocolCounts[proto] = 0;
+        }
+        dynamicProtocolCounts[proto]++;
+      });
+
+      const dynamicProtocols = Object.keys(dynamicProtocolCounts);
+      const dynamicCounts = Object.values(dynamicProtocolCounts);
+      const dynamicColors = dynamicProtocols.map((_, i) => {
+        const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22'];
+        return colors[i % colors.length];
+      });
+
+      protocolChart.data.labels = dynamicProtocols;
+      protocolChart.data.datasets[0].data = dynamicCounts;
+      protocolChart.data.datasets[0].backgroundColor = dynamicColors;
+      protocolChart.update();
+
+      // Track history for each protocol
+      Object.keys(dynamicProtocolCounts).forEach(proto => {
+        if (!protocolHistory[proto]) {
+          protocolHistory[proto] = [];
+        }
+        protocolHistory[proto].push(dynamicProtocolCounts[proto]);
+        if (protocolHistory[proto].length > 20) {
+          protocolHistory[proto].shift();
+        }
+      });
+
+      // Fill missing protocols with 0
+      Object.keys(protocolHistory).forEach(proto => {
+        if (!dynamicProtocolCounts[proto]) {
+          protocolHistory[proto].push(0);
+          if (protocolHistory[proto].length > 20) {
+            protocolHistory[proto].shift();
+          }
+        }
+      });
+
+      const colors = ['#2ecc71', '#3498db', '#e74c3c', '#f1c40f', '#9b59b6', '#1abc9c', '#e67e22'];
+      const datasets = Object.keys(protocolHistory).map((proto, i) => ({
+        label: proto,
+        data: protocolHistory[proto],
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length] + '33',
+        tension: 0.3
+      }));
+
+      protocolOverTimeChart.data.datasets = datasets;
+      protocolOverTimeChart.update();
+    })
+    .catch(err => console.error('Error updating charts:', err));
+}
+
+
+
+
