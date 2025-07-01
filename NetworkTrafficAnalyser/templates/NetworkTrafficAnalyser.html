@@ -16,6 +16,7 @@
 
   <h1>Network Traffic Analyzer</h1>
   <p>Total Packets Displayed: <span id="packet-count">0</span></p>
+  <div class="filter-controls">
   <label for="protocolFilter">Protocol:</label>
   <input type="text" id="protocolFilter" placeholder="e.g., TCP, udp, icmp" />
 
@@ -24,6 +25,7 @@
 
 <label for="dstFilter">Destination IP:</label>
 <input type="text" id="dstFilter" placeholder="e.g., 8.8.8.8" />
+</div>
 
 <div class="charts-container">
   <canvas id="packetCountChart" ></canvas>
