@@ -110,3 +110,15 @@ canvas {
   justify-content: center;
   margin-top: 20px;
 }
+
+#control-buttons button.active-play {
+  background-color: #2ecc71; /* green */
+}
+
+#control-buttons button.active-pause {
+  background-color: #f1c40f; /* yellow */
+}
+
+#control-buttons button.active-stop {
+  background-color: #e74c3c; /* red */
+}

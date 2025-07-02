@@ -34,6 +34,17 @@ document.getElementById('protocolFilter').addEventListener('input', fetchPackets
 document.getElementById('srcFilter').addEventListener('input', fetchPackets);
 document.getElementById('dstFilter').addEventListener('input', fetchPackets);
 
+const playBtn = document.getElementById('play-btn');
+const pauseBtn = document.getElementById('pause-btn');
+const stopBtn = document.getElementById('stop-btn');
+const restartBtn = document.getElementById('restart-btn');
+
+function clearControlStates() {
+  playBtn.classList.remove('active-play');
+  pauseBtn.classList.remove('active-pause');
+  stopBtn.classList.remove('active-stop');
+}
+
 
 
 function updatePacketCount() {
@@ -150,14 +161,18 @@ document.getElementById('export-charts-btn').addEventListener('click', () => {
 let monitoring = true;
 let intervalId = null;
 
-document.getElementById('pause-btn').addEventListener('click', () => {
+pauseBtn.addEventListener('click', () => {
+  clearControlStates();
+  pauseBtn.classList.add('active-pause');
   clearInterval(intervalId);
   intervalId = null;
   monitoring = false;
   fetch('/api/pause_monitoring', { method: 'POST' });
 });
 
-document.getElementById('play-btn').addEventListener('click', () => {
+playBtn.addEventListener('click', () => {
+  clearControlStates();
+  playBtn.classList.add('active-play');
   if (!intervalId) {
     fetch('/api/start_monitoring', { method: 'POST' })
       .then(() => {
@@ -168,7 +183,9 @@ document.getElementById('play-btn').addEventListener('click', () => {
 });
 
 // Stop (pause + clear charts)
-document.getElementById('stop-btn').addEventListener('click', () => {
+stopBtn.addEventListener('click', () => {
+  clearControlStates();
+  stopBtn.classList.add('active-stop');
   clearInterval(intervalId);
   intervalId = null;
   monitoring = false;
@@ -185,7 +202,7 @@ document.getElementById('stop-btn').addEventListener('click', () => {
   protocolOverTimeChart.update();
 });
 
-document.getElementById('restart-btn').addEventListener('click', () => {
+restartBtn.addEventListener('click', () => {
   clearInterval(intervalId);
   intervalId = null;
 
@@ -293,7 +310,3 @@ function updateChartsAndPackets() {
     })
     .catch(err => console.error('Error updating charts:', err));
 }
-
-
-
-
