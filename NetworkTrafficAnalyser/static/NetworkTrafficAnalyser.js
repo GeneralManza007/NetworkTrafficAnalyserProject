@@ -310,3 +310,70 @@ function updateChartsAndPackets() {
     })
     .catch(err => console.error('Error updating charts:', err));
 }
+
+const toolsBtn = document.getElementById('tools-menu-button');
+const toolsPanel = document.getElementById('tools-panel');
+const timeToolBtn = document.getElementById('time-tool-btn');
+const timeModal = document.getElementById('time-tool-modal');
+const timeDisplay = document.getElementById('time-display');
+const positionSelect = document.getElementById('modal-position-select');
+
+// Toggle tool panel
+toolsBtn.addEventListener('click', () => {
+  toolsPanel.classList.toggle('hidden');
+});
+
+// Show time tool modal
+timeToolBtn.addEventListener('click', () => {
+  toolsPanel.classList.add('hidden');
+  timeModal.classList.remove('hidden'); // <-- Add this
+  updateTime();
+});
+
+// Position modal on selection change
+positionSelect.addEventListener('change', () => {
+  setPosition(timeModal, positionSelect.value);
+});
+
+// Set modal position
+function setPosition(modal, position) {
+  modal.style.top = modal.style.left = modal.style.right = modal.style.bottom = 'auto';
+  modal.style.transform = 'none';
+
+  switch (position) {
+    case 'top-left':
+      modal.style.top = '20px';
+      modal.style.left = '20px';
+      break;
+    case 'top-right':
+      modal.style.top = '20px';
+      modal.style.right = '20px';
+      break;
+    case 'bottom-left':
+      modal.style.bottom = '20px';
+      modal.style.left = '20px';
+      break;
+    case 'bottom-right':
+      modal.style.bottom = '20px';
+      modal.style.right = '20px';
+      break;
+    case 'center':
+      modal.style.top = '50%';
+      modal.style.left = '50%';
+      modal.style.transform = 'translate(-50%, -50%)';
+      break;
+  }
+}
+
+// Update time every second
+function updateTime() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString();
+  timeDisplay.textContent = `Current Time: ${timeString}`;
+}
+
+setInterval(updateTime, 1000);
+
+document.getElementById('close-time-modal').addEventListener('click', () => {
+  timeModal.style.display = 'none';
+});
