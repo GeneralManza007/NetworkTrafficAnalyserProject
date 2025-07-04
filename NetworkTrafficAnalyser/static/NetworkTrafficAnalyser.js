@@ -327,40 +327,45 @@ toolsBtn.addEventListener('click', () => {
 timeToolBtn.addEventListener('click', () => {
   toolsPanel.classList.add('hidden');
   timeModal.classList.remove('hidden'); // <-- Add this
+  positionModal('center')
   updateTime();
 });
 
-// Position modal on selection change
 positionSelect.addEventListener('change', () => {
-  setPosition(timeModal, positionSelect.value);
+  positionModal(positionSelect.value);
 });
 
+
 // Set modal position
-function setPosition(modal, position) {
-  modal.style.top = modal.style.left = modal.style.right = modal.style.bottom = 'auto';
-  modal.style.transform = 'none';
+function positionModal(position) {
+  timeModal.style.top = '';
+  timeModal.style.right = '';
+  timeModal.style.bottom = '';
+  timeModal.style.left = '';
+  timeModal.style.transform = '';
 
   switch (position) {
     case 'top-left':
-      modal.style.top = '20px';
-      modal.style.left = '20px';
+      timeModal.style.top = '20px';
+      timeModal.style.left = '20px';
       break;
     case 'top-right':
-      modal.style.top = '20px';
-      modal.style.right = '20px';
+      timeModal.style.top = '20px';
+      timeModal.style.right = '20px';
       break;
     case 'bottom-left':
-      modal.style.bottom = '20px';
-      modal.style.left = '20px';
+      timeModal.style.bottom = '20px';
+      timeModal.style.left = '20px';
       break;
     case 'bottom-right':
-      modal.style.bottom = '20px';
-      modal.style.right = '20px';
+      timeModal.style.bottom = '20px';
+      timeModal.style.right = '20px';
       break;
     case 'center':
-      modal.style.top = '50%';
-      modal.style.left = '50%';
-      modal.style.transform = 'translate(-50%, -50%)';
+    default:
+      timeModal.style.top = '50%';
+      timeModal.style.left = '50%';
+      timeModal.style.transform = 'translate(-50%, -50%)';
       break;
   }
 }
