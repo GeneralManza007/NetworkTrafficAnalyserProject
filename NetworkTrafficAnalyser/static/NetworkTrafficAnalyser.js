@@ -418,3 +418,25 @@ timeModeSelect.addEventListener('change', (e) => {
     rangeTimeContainer.classList.remove('hidden');
   }
 });
+
+const modeSelect = document.getElementById('modal-position-select');
+  const exactContainer = document.getElementById('exact-time-container');
+  const rangeContainer = document.getElementById('range-time-container');
+
+  function updateTimeFilterUI(mode) {
+    if (mode === 'exact') {
+      exactContainer.classList.remove('hidden');
+      rangeContainer.classList.add('hidden');
+      timeModal.style.height = '170px';
+    } else if (mode === 'range') {
+      exactContainer.classList.add('hidden');
+      rangeContainer.classList.remove('hidden');
+      timeModal.style.height = '250px'; 
+    }
+  }
+
+  modeSelect.addEventListener('change', (e) => {
+    updateTimeFilterUI(e.target.value);
+  });
+
+  updateTimeFilterUI(modeSelect.value);
