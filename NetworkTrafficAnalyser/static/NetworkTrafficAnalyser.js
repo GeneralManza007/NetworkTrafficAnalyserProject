@@ -1,31 +1,28 @@
+let globalPacketData = [];
+
+function renderPackets(data) {
+  const tableBody = document.getElementById('packet-table');
+  tableBody.innerHTML = '';
+
+  data.slice().reverse().forEach(packet => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${packet.time}</td>
+      <td>${packet.src}</td>
+      <td>${packet.dst}</td>
+      <td>${packet.proto}</td>
+    `;
+    tableBody.appendChild(row);
+  });
+}
+
 function fetchPackets() {
   fetch('/api/packets')
     .then(response => response.json())
     .then(data => {
-      const protocol = document.getElementById('protocolFilter').value.toLowerCase();
-      const srcIP = document.getElementById('srcFilter').value;
-      const dstIP = document.getElementById('dstFilter').value;
-
-      const tableBody = document.getElementById('packet-table');
-      tableBody.innerHTML = '';
-
-      const filteredData = data.filter(packet => {
-       const matchesProto = !protocol || packet.proto.toLowerCase().includes(protocol);
-        const matchesSrc = !srcIP || packet.src.includes(srcIP);
-        const matchesDst = !dstIP || packet.dst.includes(dstIP);
-        return matchesProto && matchesSrc && matchesDst;
-      });
-
-      filteredData.slice().reverse().forEach(packet => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${packet.time}</td>
-          <td>${packet.src}</td>
-          <td>${packet.dst}</td>
-          <td>${packet.proto}</td>
-        `;
-        tableBody.appendChild(row);
-      });
+      globalPacketData = data;
+      const filteredData = applyFilters(data);
+      renderPackets(filteredData);
     })
     .catch(error => console.error('Error fetching packets:', error));
 }
@@ -33,6 +30,13 @@ function fetchPackets() {
 document.getElementById('protocolFilter').addEventListener('input', fetchPackets);
 document.getElementById('srcFilter').addEventListener('input', fetchPackets);
 document.getElementById('dstFilter').addEventListener('input', fetchPackets);
+
+['exactTime', 'startTime', 'endTime'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const filtered = applyFilters(globalPacketData);
+    renderPackets(filtered);
+  });
+});
 
 const playBtn = document.getElementById('play-btn');
 const pauseBtn = document.getElementById('pause-btn');
@@ -223,15 +227,43 @@ restartBtn.addEventListener('click', () => {
 
   fetch('/api/reset', { method: 'POST' })
     .then(() => {
-      // Start backend monitoring
       return fetch('/api/start_monitoring', { method: 'POST' });
     })
     .then(() => {
-      updatePacketCount(); // Refresh UI
-      intervalId = setInterval(updateChartsAndPackets, 2000); // Restart polling
+      updatePacketCount();
+      intervalId = setInterval(updateChartsAndPackets, 2000);
     })
     .catch(err => console.error('Error during restart process:', err));
-});
+}); 
+
+function applyFilters(data) {
+  const protocol = document.getElementById('protocolFilter').value.toLowerCase();
+  const src = document.getElementById('srcFilter').value;
+  const dst = document.getElementById('dstFilter').value;
+  const exactTime = document.getElementById('exactTime').value;
+  const startTime = document.getElementById('startTime').value;
+  const endTime = document.getElementById('endTime').value;
+
+  const startTimeWithSeconds = startTime ? startTime + ':00' : null;
+  const endTimeWithSeconds = endTime ? endTime + ':00' : null;
+
+  return data.filter(packet => {
+    const packetTime = packet.time || '';
+
+    if (exactTime) {
+      return packetTime === exactTime;
+   }
+    const matchesStartTime = !startTimeWithSeconds || packetTime >= startTimeWithSeconds;
+    const matchesEndTime = !endTimeWithSeconds || packetTime <= endTimeWithSeconds;
+    const matchesProtocol = !protocol || (packet.proto && packet.proto.toLowerCase().includes(protocol));
+    const matchesSrc = !src || packet.src.includes(src);
+    const matchesDst = !dst || packet.dst.includes(dst);
+
+    return matchesStartTime && matchesEndTime && matchesProtocol && matchesSrc && matchesDst;
+  });
+}
+
+
 
 
 
@@ -242,6 +274,7 @@ function updateChartsAndPackets() {
   fetch('/api/packets')
     .then(res => res.json())
     .then(data => {
+      globalPacketData = data;
       const now = new Date();
       const label = now.toLocaleTimeString();
 
@@ -321,14 +354,13 @@ const positionSelect = document.getElementById('modal-position-select');
 // Toggle tool panel
 toolsBtn.addEventListener('click', () => {
   toolsPanel.classList.toggle('hidden');
+  toolsBtn.classList.toggle('active');
 });
 
 // Show time tool modal
 timeToolBtn.addEventListener('click', () => {
-  toolsPanel.classList.add('hidden');
-  timeModal.classList.remove('hidden'); // <-- Add this
+  timeModal.classList.remove('hidden'); 
   positionModal('center')
-  updateTime();
 });
 
 positionSelect.addEventListener('change', () => {
@@ -337,48 +369,53 @@ positionSelect.addEventListener('change', () => {
 
 
 // Set modal position
-function positionModal(position) {
-  timeModal.style.top = '';
-  timeModal.style.right = '';
-  timeModal.style.bottom = '';
-  timeModal.style.left = '';
-  timeModal.style.transform = '';
+let isDragging = false;
+let offsetX, offsetY;
 
-  switch (position) {
-    case 'top-left':
-      timeModal.style.top = '20px';
-      timeModal.style.left = '20px';
-      break;
-    case 'top-right':
-      timeModal.style.top = '20px';
-      timeModal.style.right = '20px';
-      break;
-    case 'bottom-left':
-      timeModal.style.bottom = '20px';
-      timeModal.style.left = '20px';
-      break;
-    case 'bottom-right':
-      timeModal.style.bottom = '20px';
-      timeModal.style.right = '20px';
-      break;
-    case 'center':
-    default:
-      timeModal.style.top = '50%';
-      timeModal.style.left = '50%';
-      timeModal.style.transform = 'translate(-50%, -50%)';
-      break;
+const modal = document.getElementById('time-tool-modal');
+
+// Add mouse event listeners to the modal header (or the whole modal if no header)
+modal.addEventListener('mousedown', (e) => {
+  // Only allow dragging from top portion of modal (optional)
+  if (e.target.closest('#time-tool-modal')) {
+    isDragging = true;
+    offsetX = e.clientX - modal.getBoundingClientRect().left;
+    offsetY = e.clientY - modal.getBoundingClientRect().top;
+    modal.style.cursor = 'move';
   }
-}
+});
 
-// Update time every second
-function updateTime() {
-  const now = new Date();
-  const timeString = now.toLocaleTimeString();
-  timeDisplay.textContent = `Current Time: ${timeString}`;
-}
+document.addEventListener('mousemove', (e) => {
+  if (isDragging) {
+    modal.style.left = `${e.clientX - offsetX}px`;
+    modal.style.top = `${e.clientY - offsetY}px`;
+    modal.style.right = 'auto';
+    modal.style.bottom = 'auto';
+    modal.style.transform = 'none'; // Remove center transform if user moves
+  }
+});
 
-setInterval(updateTime, 1000);
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+  modal.style.cursor = 'default';
+});
 
 document.getElementById('close-time-modal').addEventListener('click', () => {
-  timeModal.style.display = 'none';
+  document.getElementById('time-tool-modal').classList.add('hidden');
+});
+
+const timeModeRadios = document.querySelectorAll('input[name="timeMode"]');
+const exactTimeContainer = document.getElementById('exact-time-container');
+const rangeTimeContainer = document.getElementById('range-time-container');
+
+timeModeRadios.forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (radio.value === 'exact') {
+      exactTimeContainer.classList.remove('hidden');
+      rangeTimeContainer.classList.add('hidden');
+    } else {
+      exactTimeContainer.classList.add('hidden');
+      rangeTimeContainer.classList.remove('hidden');
+    }
+  });
 });
