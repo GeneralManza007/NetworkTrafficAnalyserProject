@@ -404,18 +404,17 @@ document.getElementById('close-time-modal').addEventListener('click', () => {
   document.getElementById('time-tool-modal').classList.add('hidden');
 });
 
-const timeModeRadios = document.querySelectorAll('input[name="timeMode"]');
+const timeModeSelect = document.getElementById('modal-position-select');
 const exactTimeContainer = document.getElementById('exact-time-container');
 const rangeTimeContainer = document.getElementById('range-time-container');
 
-timeModeRadios.forEach(radio => {
-  radio.addEventListener('change', () => {
-    if (radio.value === 'exact') {
-      exactTimeContainer.classList.remove('hidden');
-      rangeTimeContainer.classList.add('hidden');
-    } else {
-      exactTimeContainer.classList.add('hidden');
-      rangeTimeContainer.classList.remove('hidden');
-    }
-  });
+timeModeSelect.addEventListener('change', (e) => {
+  const selectedMode = e.target.value;
+  if (selectedMode === 'exact') {
+    exactTimeContainer.classList.remove('hidden');
+    rangeTimeContainer.classList.add('hidden');
+  } else if (selectedMode === 'range') {
+    exactTimeContainer.classList.add('hidden');
+    rangeTimeContainer.classList.remove('hidden');
+  }
 });
