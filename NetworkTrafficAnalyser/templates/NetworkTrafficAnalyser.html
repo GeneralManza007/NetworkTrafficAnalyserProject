@@ -19,20 +19,37 @@
       Time Tool
     </button>
   </div>
-
-  <!-- Time Tool Modal -->
   <div id="time-tool-modal" class="hidden">
     <button id="close-time-modal" class="close-btn">✖</button>
-    <h3>Select Modal Position</h3>
     <select id="modal-position-select">
       <option value="top-left">Top Left</option>
       <option value="top-right">Top Right</option>
       <option value="bottom-left">Bottom Left</option>
       <option value="bottom-right">Bottom Right</option>
-      <option value="center" selected>Center</option> <!-- Default -->
+      <option value="center" selected>Center</option>
     </select>
     <div class="modal-content">
-      <p id="time-display">Current Time: --:--:--</p>
+      <div id="time-filter">
+
+  <div id="time-mode-select">
+    <label><input type="radio" name="timeMode" value="exact" checked> Exact Time</label>
+    <label><input type="radio" name="timeMode" value="range"> Time Range</label>
+  </div>
+
+  <div id="exact-time-container">
+    <label for="exactTime">Exact Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="exactTime" />
+  </div>
+
+  <div id="range-time-container" class="hidden">
+    <label for="startTime">Start Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="startTime" />
+    <br>
+    <br>
+    <label for="endTime">End Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="endTime" />
+  </div>
+</div>
     </div>
   </div>
   <div id="control-buttons">
@@ -41,9 +58,7 @@
   <button id="stop-btn">⏹</button>
   <button id="restart-btn">🔁</button>
 </div>
-
-  <h1>Network Traffic Analyzer</h1>
-  <p>Total Packets Displayed: <span id="packet-count">0</span></p>
+  <h1>Total Packets Displayed: <span id="packet-count">0</span></h1>
   <div class="filter-controls">
   <label for="protocolFilter">Protocol:</label>
   <input type="text" id="protocolFilter" placeholder="e.g., TCP, udp, icmp" />
