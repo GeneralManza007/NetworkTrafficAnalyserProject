@@ -7,15 +7,50 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Tools Menu Button (Top-left corner) -->
+  <div id="tools-menu-button">
+    <img src="{{ url_for('static', filename='icons/tools-icon.png') }}" alt="Tools" />
+  </div>
+
+  <!-- Tools Panel (hidden by default) -->
+  <div id="tools-panel" class="hidden">
+    <button class="tool-btn" id="time-tool-btn">
+      <img src="{{ url_for('static', filename='icons/stopwatch-icon.png') }}" alt="Time Tool" />
+      Time Tool
+    </button>
+  </div>
+  <div id="time-tool-modal" class="hidden">
+    <button id="close-time-modal" class="close-btn">✖</button>
+    <select id="modal-position-select">
+    <option value="exact" selected>Exact Time</option>
+    <option value="range">Time Range</option>
+  </select>
+    <div class="modal-content">
+      <div id="time-filter">
+
+  <div id="exact-time-container">
+    <label for="exactTime">Exact Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="exactTime" />
+  </div>
+
+  <div id="range-time-container" class="hidden">
+    <label for="startTime">Start Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="startTime" />
+    <br>
+    <br>
+    <label for="endTime">End Time (HH:MM:SS):</label>
+    <input type="time" step="1" id="endTime" />
+  </div>
+</div>
+    </div>
+  </div>
   <div id="control-buttons">
   <button id="play-btn">▶</button>
   <button id="pause-btn">⏸</button>
   <button id="stop-btn">⏹</button>
   <button id="restart-btn">🔁</button>
 </div>
-
-  <h1>Network Traffic Analyzer</h1>
-  <p>Total Packets Displayed: <span id="packet-count">0</span></p>
+  <h1>Total Packets Displayed: <span id="packet-count">0</span></h1>
   <div class="filter-controls">
   <label for="protocolFilter">Protocol:</label>
   <input type="text" id="protocolFilter" placeholder="e.g., TCP, udp, icmp" />
