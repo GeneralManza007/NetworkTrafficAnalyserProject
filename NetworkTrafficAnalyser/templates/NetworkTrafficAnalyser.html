@@ -105,6 +105,11 @@
     </thead>
     <tbody id="packet-table"></tbody>
   </table>
+
+  <div id="port-loading-overlay" class="hidden">
+  <div class="loader"></div>
+  <p>Scanning traffic for suspicious ports...</p>
+</div>
   <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
 </body>
 </html>
