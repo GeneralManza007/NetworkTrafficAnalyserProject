@@ -18,6 +18,10 @@
       <img src="{{ url_for('static', filename='icons/stopwatch-icon.png') }}" alt="Time Tool" />
       Time Tool
     </button>
+    <button class="tool-btn" id="port-tool-btn">
+    <img src="{{ url_for('static', filename='icons/port-icon.png') }}" alt="Port Tool" />
+    Port Tool
+  </button>
   </div>
   <div id="time-tool-modal" class="hidden">
     <button id="close-time-modal" class="close-btn">✖</button>
@@ -44,6 +48,14 @@
 </div>
     </div>
   </div>
+  <div id="port-tool-modal" class="hidden">
+  <button id="close-port-modal" class="close-port-btn">✖</button>
+  <p>Enter suspicious port numbers or check common risky ones:</p>
+  <textarea id="custom-ports" placeholder="e.g., 21, 23, 445"></textarea>
+  <button id="scan-ports-btn" class="scan-ports-btn">Scan Traffic</button>
+  <div id="port-results"></div>
+</div>
+
   <div id="control-buttons">
   <button id="play-btn">▶</button>
   <button id="pause-btn">⏸</button>
@@ -61,11 +73,19 @@
 <label for="dstFilter">Destination IP:</label>
 <input type="text" id="dstFilter" placeholder="e.g., 8.8.8.8" />
 </div>
+<br>
+<div class="port-filter-controls">
+<label for="srcPortFilter">Source Port:</label>
+<input type="text" id="srcPortFilter" placeholder="Source Port">
+
+<label for="dstPortFilter">Destination Port:</label>
+<input type="text" id="dstPortFilter" placeholder="Destination Port">
+</div>
 
 <div class="charts-container">
-  <canvas id="packetCountChart" ></canvas>
-  <canvas id="protocolChart" ></canvas>
   <canvas id="protocolOverTimeChart" ></canvas>
+  <canvas id="protocolChart" ></canvas>
+  <canvas id="commonPortsChart" ></canvas>
 </div>
 
 <div id="export-buttons">
@@ -77,7 +97,9 @@
       <tr>
         <th>Time</th>
         <th>Source IP</th>
+        <th>Src Port</th>
         <th>Destination IP</th>
+        <th>Dst Port</th>
         <th>Protocol</th>
       </tr>
     </thead>
