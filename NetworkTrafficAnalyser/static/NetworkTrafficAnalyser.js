@@ -61,7 +61,6 @@ function updatePacketCount() {
     })
     .catch(error => console.error('Error fetching packet count:', error));
 }
-
 let timeLabels = [];
 let packetCounts = [];
 let protocolCounts = { TCP: 0, UDP: 0, ICMP: 0 };
@@ -289,8 +288,6 @@ function updateChartsAndPackets() {
     .then(res => res.json())
     .then(data => {
       globalPacketData = data;
-      const now = new Date();
-
       dynamicProtocolCounts = {};
 
       data.forEach(pkt => {
@@ -343,6 +340,14 @@ function updateChartsAndPackets() {
         tension: 0.3
       }));
 
+      const nowTime = new Date().toLocaleTimeString();
+      timeLabels.push(nowTime);
+      if (timeLabels.length > 20) {
+        timeLabels.shift();
+      }
+
+      // Update chart labels and datasets
+      protocolOverTimeChart.data.labels = timeLabels;
       protocolOverTimeChart.data.datasets = datasets;
       protocolOverTimeChart.update();
 
