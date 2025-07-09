@@ -46,11 +46,24 @@ def packet_callback(packet):
     if IP in packet:
         proto_num = packet.proto
         proto_name = proto_map.get(proto_num, f"Unknown ({proto_num})")
+
+        src_port = dst_port = None
+
+        # Check for TCP or UDP layers to get ports
+        if packet.haslayer(TCP):
+            src_port = packet[TCP].sport
+            dst_port = packet[TCP].dport
+        elif packet.haslayer("UDP"):
+            src_port = packet["UDP"].sport
+            dst_port = packet["UDP"].dport
+
         total_packets += 1
         captured_packets.append({
             "src": packet[IP].src,
             "dst": packet[IP].dst,
             "proto": proto_name,
+            "src_port": src_port,
+            "dst_port": dst_port,
             "time": time.strftime('%H:%M:%S'),
         })
 
