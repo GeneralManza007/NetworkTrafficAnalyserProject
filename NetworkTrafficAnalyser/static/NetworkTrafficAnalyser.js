@@ -519,31 +519,38 @@ closePortModal.addEventListener("click", () => {
 });
 
 scanPortsBtn.addEventListener("click", () => {
-  const input = document.getElementById("custom-ports").value;
-  const userPorts = input
-    .split(',')
-    .map(p => p.trim())
-    .filter(p => p !== "");
+  const loadingOverlay = document.getElementById("port-loading-overlay");
+  loadingOverlay.classList.remove("hidden");
 
-  const allPorts = [...new Set([...knownDangerousPorts, ...userPorts])];
+  const delay = Math.floor(Math.random() * 16) + 5; 
+  setTimeout(() => {
+    const input = document.getElementById("custom-ports").value;
+    const userPorts = input
+      .split(',')
+      .map(p => p.trim())
+      .filter(p => p !== "");
 
-  const filteredData = applyFilters(globalPacketData); 
+    const allPorts = [...new Set([...knownDangerousPorts, ...userPorts])];
 
-  let matches = [];
+    const filteredData = applyFilters(globalPacketData); 
+    let matches = [];
 
-  filteredData.forEach(packet => {
-    const srcDetail = `${packet.src}:${packet.src_port}`;
-    const dstDetail = `${packet.dst}:${packet.dst_port}`;
-    const proto = (packet.proto || "Unknown").toLowerCase();
+    filteredData.forEach(packet => {
+      const srcDetail = `${packet.src}:${packet.src_port}`;
+      const dstDetail = `${packet.dst}:${packet.dst_port}`;
+      const proto = (packet.proto || "Unknown").toLowerCase();
 
-    allPorts.forEach(port => {
-      if (String(packet.src_port) === port || String(packet.dst_port) === port) {
-        matches.push(`<li>${srcDetail} → ${dstDetail} (Protocol: ${proto}, Port: ${port})</li>`);
-      }
+      allPorts.forEach(port => {
+        if (String(packet.src_port) === port || String(packet.dst_port) === port) {
+          matches.push(`<li>${srcDetail} → ${dstDetail} (Protocol: ${proto}, Port: ${port})</li>`);
+        }
+      });
     });
-  });
 
-  portResults.innerHTML = matches.length
-    ? `<ul>${matches.join("")}</ul>`
-    : "<p>No suspicious ports found.</p>";
+    portResults.innerHTML = matches.length
+      ? `<ul>${matches.join("")}</ul>`
+      : "<p>No suspicious ports found.</p>";
+
+    loadingOverlay.classList.add("hidden"); 
+  }, delay * 1000); 
 });
