@@ -554,3 +554,34 @@ scanPortsBtn.addEventListener("click", () => {
     loadingOverlay.classList.add("hidden"); 
   }, delay * 1000); 
 });
+
+function exportToCSV(data) {
+  if (!data.length) return;
+
+  // Desired column order
+  const orderedHeaders = ['time', 'src', 'src_port', 'dst', 'dst_port', 'proto'];
+  const csvRows = [orderedHeaders.join(',')];
+
+  data.forEach(row => {
+    const values = orderedHeaders.map(header => {
+      const val = row[header] === null || row[header] === undefined ? '' : row[header];
+      return `"${String(val).replace(/"/g, '""')}"`;
+    });
+    csvRows.push(values.join(','));
+  });
+
+  const csvContent = csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'packets_export.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const filteredData = applyFilters(globalPacketData);
+  exportToCSV(filteredData);
+});
