@@ -391,6 +391,36 @@ function updateChartsAndPackets() {
     .catch(err => console.error('Error updating charts:', err));
 }
 
+function makeModalDraggable(modal) {
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  modal.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.modal-header') || e.target === modal) {
+      isDragging = true;
+      offsetX = e.clientX - modal.getBoundingClientRect().left;
+      offsetY = e.clientY - modal.getBoundingClientRect().top;
+      modal.style.cursor = 'move';
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      modal.style.left = `${e.clientX - offsetX}px`;
+      modal.style.top = `${e.clientY - offsetY}px`;
+      modal.style.right = 'auto';
+      modal.style.bottom = 'auto';
+      modal.style.transform = 'none';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    modal.style.cursor = 'default';
+  });
+}
+
 const toolsBtn = document.getElementById('tools-menu-button');
 const toolsPanel = document.getElementById('tools-panel');
 const timeToolBtn = document.getElementById('time-tool-btn');
@@ -414,39 +444,6 @@ positionSelect.addEventListener('change', () => {
   positionModal(positionSelect.value);
 });
 
-
-// Set modal position
-let isDragging = false;
-let offsetX, offsetY;
-
-const modal = document.getElementById('time-tool-modal');
-
-// Add mouse event listeners to the modal header (or the whole modal if no header)
-modal.addEventListener('mousedown', (e) => {
-  // Only allow dragging from top portion of modal (optional)
-  if (e.target.closest('#time-tool-modal')) {
-    isDragging = true;
-    offsetX = e.clientX - modal.getBoundingClientRect().left;
-    offsetY = e.clientY - modal.getBoundingClientRect().top;
-    modal.style.cursor = 'move';
-  }
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (isDragging) {
-    modal.style.left = `${e.clientX - offsetX}px`;
-    modal.style.top = `${e.clientY - offsetY}px`;
-    modal.style.right = 'auto';
-    modal.style.bottom = 'auto';
-    modal.style.transform = 'none'; // Remove center transform if user moves
-  }
-});
-
-document.addEventListener('mouseup', () => {
-  isDragging = false;
-  modal.style.cursor = 'default';
-});
-
 document.getElementById('close-time-modal').addEventListener('click', () => {
   document.getElementById('time-tool-modal').classList.add('hidden');
 });
@@ -465,6 +462,7 @@ timeModeSelect.addEventListener('change', (e) => {
     rangeTimeContainer.classList.remove('hidden');
   }
 });
+makeModalDraggable(timeModal);
 
 const modeSelect = document.getElementById('modal-position-select');
   const exactContainer = document.getElementById('exact-time-container');
@@ -518,12 +516,15 @@ closePortModal.addEventListener("click", () => {
   portToolModal.classList.add("hidden");
 });
 
+let portScanTimeoutId = null; // Track timeout globally
+
 scanPortsBtn.addEventListener("click", () => {
   const loadingOverlay = document.getElementById("port-loading-overlay");
   loadingOverlay.classList.remove("hidden");
 
-  const delay = Math.floor(Math.random() * 16) + 5; 
-  setTimeout(() => {
+  const delay = Math.floor(Math.random() * 16) + 5;
+
+  portScanTimeoutId = setTimeout(() => {
     const input = document.getElementById("custom-ports").value;
     const userPorts = input
       .split(',')
@@ -551,14 +552,26 @@ scanPortsBtn.addEventListener("click", () => {
       ? `<ul>${matches.join("")}</ul>`
       : "<p>No suspicious ports found.</p>";
 
-    loadingOverlay.classList.add("hidden"); 
-  }, delay * 1000); 
+    loadingOverlay.classList.add("hidden");
+    portScanTimeoutId = null;
+  }, delay * 1000);
 });
+
+// Cancel button logic
+document.getElementById("cancel-port-scan").addEventListener("click", () => {
+  if (portScanTimeoutId) {
+    clearTimeout(portScanTimeoutId);
+    portScanTimeoutId = null;
+  }
+
+  document.getElementById("port-loading-overlay").classList.add("hidden");
+  portResults.innerHTML = "<p>Scan cancelled by user.</p>";
+});
+
 
 function exportToCSV(data) {
   if (!data.length) return;
-
-  // Desired column order
+  
   const orderedHeaders = ['time', 'src', 'src_port', 'dst', 'dst_port', 'proto'];
   const csvRows = [orderedHeaders.join(',')];
 
@@ -585,3 +598,4 @@ document.getElementById('export-btn').addEventListener('click', () => {
   const filteredData = applyFilters(globalPacketData);
   exportToCSV(filteredData);
 });
+makeModalDraggable(portToolModal);
