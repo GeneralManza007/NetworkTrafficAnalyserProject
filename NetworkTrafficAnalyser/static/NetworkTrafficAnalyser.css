@@ -112,18 +112,17 @@ canvas {
 }
 
 #control-buttons button.active-play {
-  background-color: #2ecc71; /* green */
+  background-color: #2ecc71;
 }
 
 #control-buttons button.active-pause {
-  background-color: #f1c40f; /* yellow */
+  background-color: #f1c40f; 
 }
 
 #control-buttons button.active-stop {
-  background-color: #e74c3c; /* red */
+  background-color: #e74c3c; 
 }
 
-/* Tools Menu Button */
 #tools-menu-button {
   position: absolute;
   top: 20px;
@@ -136,7 +135,6 @@ canvas {
   filter: invert(90%);
 }
 
-/* Tools Panel */
 #tools-panel {
   position: absolute;
   top: 60px;
@@ -208,7 +206,6 @@ canvas {
   margin-top: 15px;
 }
 
-/* Show/Hide Utility */
 .hidden {
   display: none !important;
 }
@@ -332,7 +329,7 @@ canvas {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 1100; /* Make sure it's above the modal */
+  z-index: 1100;
 }
 
 .loader {

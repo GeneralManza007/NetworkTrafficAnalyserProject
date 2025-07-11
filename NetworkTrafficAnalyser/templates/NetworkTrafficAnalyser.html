@@ -8,12 +8,10 @@
 </head>
 <body>
   <audio id="port-alert-sound" src="{{ url_for('static', filename='sounds/warning.mp3') }}" preload="auto"></audio>
-    <!-- Tools Menu Button (Top-left corner) -->
   <div id="tools-menu-button">
     <img src="{{ url_for('static', filename='icons/tools-icon.png') }}" alt="Tools" />
   </div>
-
-  <!-- Tools Panel (hidden by default) -->
+  
   <div id="tools-panel" class="hidden">
     <button class="tool-btn" id="time-tool-btn">
       <img src="{{ url_for('static', filename='icons/stopwatch-icon.png') }}" alt="Time Tool" />

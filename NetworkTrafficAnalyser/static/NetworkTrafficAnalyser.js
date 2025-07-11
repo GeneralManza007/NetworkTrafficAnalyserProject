@@ -309,8 +309,7 @@ function updateChartsAndPackets() {
       protocolChart.data.datasets[0].data = dynamicCounts;
       protocolChart.data.datasets[0].backgroundColor = dynamicColors;
       protocolChart.update();
-
-      // Track history for each protocol
+      
       Object.keys(dynamicProtocolCounts).forEach(proto => {
         if (!protocolHistory[proto]) {
           protocolHistory[proto] = [];
@@ -321,7 +320,6 @@ function updateChartsAndPackets() {
         }
       });
 
-      // Fill missing protocols with 0
       Object.keys(protocolHistory).forEach(proto => {
         if (!dynamicProtocolCounts[proto]) {
           protocolHistory[proto].push(0);
@@ -345,13 +343,10 @@ function updateChartsAndPackets() {
       if (timeLabels.length > 20) {
         timeLabels.shift();
       }
-
-      // Update chart labels and datasets
       protocolOverTimeChart.data.labels = timeLabels;
       protocolOverTimeChart.data.datasets = datasets;
       protocolOverTimeChart.update();
 
-            // Count port usage
       let portUsage = {};
 
       data.forEach(pkt => {
@@ -363,7 +358,6 @@ function updateChartsAndPackets() {
         });
       });
 
-      // Sort and limit to top 10
       const sortedPorts = Object.entries(portUsage)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
@@ -428,13 +422,11 @@ const timeModal = document.getElementById('time-tool-modal');
 const timeDisplay = document.getElementById('time-display');
 const positionSelect = document.getElementById('modal-position-select');
 
-// Toggle tool panel
 toolsBtn.addEventListener('click', () => {
   toolsPanel.classList.toggle('hidden');
   toolsBtn.classList.toggle('active');
 });
 
-// Show time tool modal
 timeToolBtn.addEventListener('click', () => {
   timeModal.classList.remove('hidden'); 
   positionModal('center')
@@ -568,7 +560,6 @@ function performPortScanLogic(silent = false, source = "manual") {
 
   let matches = [];
 
-  // Determine packets to check:
   const packetsToCheck = source === "auto"
     ? filteredData.slice(lastScannedIndex)
     : filteredData;
@@ -595,12 +586,10 @@ function performPortScanLogic(silent = false, source = "manual") {
     }
   }
 
-  // Update last scanned index
   if (source === "auto") {
     lastScannedIndex = filteredData.length;
   }
 
-  // Manual scan: Show full result set
   if (!silent && source === "manual") {
     portResults.innerHTML = matches.length
       ? `<ul>${matches.join("")}</ul>`
