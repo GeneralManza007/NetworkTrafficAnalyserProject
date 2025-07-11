@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <audio id="port-alert-sound" src="{{ url_for('static', filename='sounds/warning.mp3') }}" preload="auto"></audio>
     <!-- Tools Menu Button (Top-left corner) -->
   <div id="tools-menu-button">
     <img src="{{ url_for('static', filename='icons/tools-icon.png') }}" alt="Tools" />
@@ -50,6 +51,10 @@
   </div>
   <div id="port-tool-modal" class="hidden">
   <button id="close-port-modal" class="close-port-btn">✖</button>
+  <div id="auto-scan-container">
+    <label for="auto-scan-toggle">Auto Scan</label>
+    <input type="checkbox" id="auto-scan-toggle" />
+  </div>
   <p>Enter suspicious port numbers or check common risky ones:</p>
   <textarea id="custom-ports" placeholder="e.g., 21, 23, 445"></textarea>
   <button id="scan-ports-btn" class="scan-ports-btn">Scan Traffic</button>
@@ -111,6 +116,11 @@
   <div class="loader"></div>
   <p>Scanning traffic for suspicious ports...</p>
 </div>
+<div id="port-alert" class="hidden warning-modal">
+  <p><strong>⚠️ Suspicious Port Activity Detected!</strong></p>
+  <div id="auto-scan-results" style="max-height: 150px;"></div>
+</div>
+
   <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
 </body>
 </html>
