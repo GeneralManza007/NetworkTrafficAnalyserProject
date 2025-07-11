@@ -291,6 +291,10 @@ canvas {
   height: auto;
 }
 
+#port-tool-modal p{
+  margin-top: 40px;
+}
+
 #custom-ports {
   width: 100%;
   height: 60px;
@@ -355,4 +359,35 @@ canvas {
   font-size: 24px;
   color: white;
   cursor: pointer;
+}
+
+#port-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #ff4444;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 16px;
+  z-index: 9999;
+  animation: flash 1s infinite;
+  box-shadow: 0 0 10px red;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+#auto-scan-container {
+  position: absolute;
+  top: -2px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #fff;
 }
