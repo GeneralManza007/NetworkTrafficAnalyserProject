@@ -9,7 +9,9 @@ function renderPackets(data) {
     row.innerHTML = `
       <td>${packet.time}</td>
       <td>${packet.src}</td>
+      <td>${packet.src_port || '-'}</td>
       <td>${packet.dst}</td>
+      <td>${packet.dst_port || '-'}</td>
       <td>${packet.proto}</td>
     `;
     tableBody.appendChild(row);
@@ -30,6 +32,8 @@ function fetchPackets() {
 document.getElementById('protocolFilter').addEventListener('input', fetchPackets);
 document.getElementById('srcFilter').addEventListener('input', fetchPackets);
 document.getElementById('dstFilter').addEventListener('input', fetchPackets);
+document.getElementById('srcPortFilter').addEventListener('input', fetchPackets);
+document.getElementById('dstPortFilter').addEventListener('input', fetchPackets);
 
 ['exactTime', 'startTime', 'endTime'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
@@ -49,8 +53,6 @@ function clearControlStates() {
   stopBtn.classList.remove('active-stop');
 }
 
-
-
 function updatePacketCount() {
   fetch('/api/packet_count')
     .then(response => response.json())
@@ -59,36 +61,10 @@ function updatePacketCount() {
     })
     .catch(error => console.error('Error fetching packet count:', error));
 }
-
 let timeLabels = [];
 let packetCounts = [];
 let protocolCounts = { TCP: 0, UDP: 0, ICMP: 0 };
 let protocolHistory = {};
-
-const packetCountCtx = document.getElementById('packetCountChart').getContext('2d');
-
-const packetChart = new Chart(packetCountCtx, {
-  type: 'line',
-  data: {
-    labels: timeLabels,
-    datasets: [{
-      label: 'Packets over Time',
-      data: packetCounts,
-      borderColor: 'lime',
-      backgroundColor: 'rgba(0,255,0,0.1)',
-      tension: 0.3
-    }]
-  },
-  options: {
-    scales: {
-      x: { ticks: { color: '#ccc' } },
-      y: { ticks: { color: '#ccc' }, beginAtZero: true }
-    },
-    plugins: {
-      legend: { labels: { color: '#ccc' } }
-    }
-  }
-});
 
 let dynamicProtocolCounts = {};
 
@@ -124,7 +100,7 @@ const protocolOverTimeChart = new Chart(protocolOverTimeCtx, {
   type: 'line',
   data: {
     labels: timeLabels,
-    datasets: [] // Start empty; dynamically filled
+    datasets: []
   },
   options: {
     scales: {
@@ -137,10 +113,40 @@ const protocolOverTimeChart = new Chart(protocolOverTimeCtx, {
   }
 });
 
+const commonPortsCtx = document.getElementById('commonPortsChart').getContext('2d');
+
+const commonPortsChart = new Chart(commonPortsCtx, {
+  type: 'bar',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Most Common Ports',
+      data: [],
+      backgroundColor: '#8e44ad'
+    }]
+  },
+  options: {
+    scales: {
+      x: {
+        ticks: { color: '#ccc' },
+        title: { display: true, text: 'Port', color: '#ccc' }
+      },
+      y: {
+        ticks: { color: '#ccc' },
+        title: { display: true, text: 'Count', color: '#ccc' },
+        beginAtZero: true
+      }
+    },
+    plugins: {
+      legend: { labels: { color: '#ccc' } }
+    }
+  }
+});
+
 document.getElementById('export-charts-btn').addEventListener('click', () => {
-  const chart1 = document.getElementById('packetCountChart');
-  const chart2 = document.getElementById('protocolChart');
-  const chart3 = document.getElementById('protocolOverTimeChart');
+  const chart1 = document.getElementById('protocolChart');
+  const chart2 = document.getElementById('protocolOverTimeChart');
+  const chart3 = document.getElementById('commonPortsChart');
 
   const width = Math.max(chart1.width, chart2.width, chart3.width);
   const height = chart1.height + chart2.height + chart3.height;
@@ -151,11 +157,9 @@ document.getElementById('export-charts-btn').addEventListener('click', () => {
 
   const ctx = combinedCanvas.getContext('2d');
 
-  // Draw charts stacked vertically
   ctx.drawImage(chart1, 0, 0);
   ctx.drawImage(chart2, 0, chart1.height);
   ctx.drawImage(chart3, 0, chart1.height + chart2.height);
-
   const link = document.createElement('a');
   link.download = 'combined_charts.png';
   link.href = combinedCanvas.toDataURL('image/png');
@@ -186,7 +190,6 @@ playBtn.addEventListener('click', () => {
   }
 });
 
-// Stop (pause + clear charts)
 stopBtn.addEventListener('click', () => {
   clearControlStates();
   stopBtn.classList.add('active-stop');
@@ -194,7 +197,6 @@ stopBtn.addEventListener('click', () => {
   intervalId = null;
   monitoring = false;
 
-  // Clear data
   timeLabels.length = 0;
   packetCounts.length = 0;
   protocolHistory = {};
@@ -210,7 +212,6 @@ restartBtn.addEventListener('click', () => {
   clearInterval(intervalId);
   intervalId = null;
 
-  // Clear frontend state
   timeLabels.length = 0;
   packetCounts.length = 0;
   protocolHistory = {};
@@ -240,6 +241,8 @@ function applyFilters(data) {
   const protocol = document.getElementById('protocolFilter').value.toLowerCase();
   const src = document.getElementById('srcFilter').value;
   const dst = document.getElementById('dstFilter').value;
+  const srcPort = document.getElementById('srcPortFilter').value;
+  const dstPort = document.getElementById('dstPortFilter').value;
   const exactTime = document.getElementById('exactTime').value;
   const startTime = document.getElementById('startTime').value;
   const endTime = document.getElementById('endTime').value;
@@ -250,22 +253,32 @@ function applyFilters(data) {
   return data.filter(packet => {
     const packetTime = packet.time || '';
 
-    if (exactTime) {
-      return packetTime === exactTime;
-   }
     const matchesStartTime = !startTimeWithSeconds || packetTime >= startTimeWithSeconds;
     const matchesEndTime = !endTimeWithSeconds || packetTime <= endTimeWithSeconds;
     const matchesProtocol = !protocol || (packet.proto && packet.proto.toLowerCase().includes(protocol));
     const matchesSrc = !src || packet.src.includes(src);
     const matchesDst = !dst || packet.dst.includes(dst);
+    const matchesSrcPort = !srcPort || packet.src_port === Number(srcPort);
+    const matchesDstPort = !dstPort || packet.dst_port === Number(dstPort);
 
-    return matchesStartTime && matchesEndTime && matchesProtocol && matchesSrc && matchesDst;
+
+    console.log({
+  packetSrcPort: packet.src_port,
+  packetDstPort: packet.dst_port,
+  filterSrcPort: srcPort,
+  filterDstPort: dstPort
+});
+
+    if (exactTime) {
+      return packetTime === exactTime;
+    }
+
+    return matchesStartTime && matchesEndTime && matchesProtocol &&
+           matchesSrc && matchesDst && matchesSrcPort && matchesDstPort;
   });
 }
 
-
-
-
+const portColors = {}; 
 
 function updateChartsAndPackets() {
   fetchPackets();
@@ -275,18 +288,7 @@ function updateChartsAndPackets() {
     .then(res => res.json())
     .then(data => {
       globalPacketData = data;
-      const now = new Date();
-      const label = now.toLocaleTimeString();
-
-      // Update time and packet count
-      timeLabels.push(label);
-      if (timeLabels.length > 20) timeLabels.shift();
-
-      packetCounts.push(data.length);
-      if (packetCounts.length > 20) packetCounts.shift();
-      packetChart.update();
-
-      dynamicProtocolCounts = {}; // reset
+      dynamicProtocolCounts = {};
 
       data.forEach(pkt => {
         const proto = pkt.proto.toUpperCase();
@@ -307,8 +309,7 @@ function updateChartsAndPackets() {
       protocolChart.data.datasets[0].data = dynamicCounts;
       protocolChart.data.datasets[0].backgroundColor = dynamicColors;
       protocolChart.update();
-
-      // Track history for each protocol
+      
       Object.keys(dynamicProtocolCounts).forEach(proto => {
         if (!protocolHistory[proto]) {
           protocolHistory[proto] = [];
@@ -319,7 +320,6 @@ function updateChartsAndPackets() {
         }
       });
 
-      // Fill missing protocols with 0
       Object.keys(protocolHistory).forEach(proto => {
         if (!dynamicProtocolCounts[proto]) {
           protocolHistory[proto].push(0);
@@ -338,10 +338,81 @@ function updateChartsAndPackets() {
         tension: 0.3
       }));
 
+      const nowTime = new Date().toLocaleTimeString();
+      timeLabels.push(nowTime);
+      if (timeLabels.length > 20) {
+        timeLabels.shift();
+      }
+      protocolOverTimeChart.data.labels = timeLabels;
       protocolOverTimeChart.data.datasets = datasets;
       protocolOverTimeChart.update();
+
+      let portUsage = {};
+
+      data.forEach(pkt => {
+        const ports = [pkt.src_port, pkt.dst_port];
+        ports.forEach(port => {
+          if (port && !isNaN(port)) {
+            portUsage[port] = (portUsage[port] || 0) + 1;
+          }
+        });
+      });
+
+      const sortedPorts = Object.entries(portUsage)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      const topPorts = sortedPorts.map(([port]) => port);
+      const topCounts = sortedPorts.map(([_, count]) => count);
+
+      const backgroundColors = topPorts.map(port => {
+      if (!portColors[port]) {
+        const r = Math.floor(Math.random() * 255);
+        const g = Math.floor(Math.random() * 255);
+        const b = Math.floor(Math.random() * 255);
+        portColors[port] = `rgba(${r}, ${g}, ${b}, 0.7)`;
+      }
+      return portColors[port];
+    });
+
+    commonPortsChart.data.labels = topPorts;
+    commonPortsChart.data.datasets[0].data = topCounts;
+    commonPortsChart.data.datasets[0].backgroundColor = backgroundColors;
+
+    commonPortsChart.update();
+
     })
     .catch(err => console.error('Error updating charts:', err));
+}
+
+function makeModalDraggable(modal) {
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  modal.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.modal-header') || e.target === modal) {
+      isDragging = true;
+      offsetX = e.clientX - modal.getBoundingClientRect().left;
+      offsetY = e.clientY - modal.getBoundingClientRect().top;
+      modal.style.cursor = 'move';
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      modal.style.left = `${e.clientX - offsetX}px`;
+      modal.style.top = `${e.clientY - offsetY}px`;
+      modal.style.right = 'auto';
+      modal.style.bottom = 'auto';
+      modal.style.transform = 'none';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    modal.style.cursor = 'default';
+  });
 }
 
 const toolsBtn = document.getElementById('tools-menu-button');
@@ -351,13 +422,11 @@ const timeModal = document.getElementById('time-tool-modal');
 const timeDisplay = document.getElementById('time-display');
 const positionSelect = document.getElementById('modal-position-select');
 
-// Toggle tool panel
 toolsBtn.addEventListener('click', () => {
   toolsPanel.classList.toggle('hidden');
   toolsBtn.classList.toggle('active');
 });
 
-// Show time tool modal
 timeToolBtn.addEventListener('click', () => {
   timeModal.classList.remove('hidden'); 
   positionModal('center')
@@ -365,39 +434,6 @@ timeToolBtn.addEventListener('click', () => {
 
 positionSelect.addEventListener('change', () => {
   positionModal(positionSelect.value);
-});
-
-
-// Set modal position
-let isDragging = false;
-let offsetX, offsetY;
-
-const modal = document.getElementById('time-tool-modal');
-
-// Add mouse event listeners to the modal header (or the whole modal if no header)
-modal.addEventListener('mousedown', (e) => {
-  // Only allow dragging from top portion of modal (optional)
-  if (e.target.closest('#time-tool-modal')) {
-    isDragging = true;
-    offsetX = e.clientX - modal.getBoundingClientRect().left;
-    offsetY = e.clientY - modal.getBoundingClientRect().top;
-    modal.style.cursor = 'move';
-  }
-});
-
-document.addEventListener('mousemove', (e) => {
-  if (isDragging) {
-    modal.style.left = `${e.clientX - offsetX}px`;
-    modal.style.top = `${e.clientY - offsetY}px`;
-    modal.style.right = 'auto';
-    modal.style.bottom = 'auto';
-    modal.style.transform = 'none'; // Remove center transform if user moves
-  }
-});
-
-document.addEventListener('mouseup', () => {
-  isDragging = false;
-  modal.style.cursor = 'default';
 });
 
 document.getElementById('close-time-modal').addEventListener('click', () => {
@@ -418,6 +454,7 @@ timeModeSelect.addEventListener('change', (e) => {
     rangeTimeContainer.classList.remove('hidden');
   }
 });
+makeModalDraggable(timeModal);
 
 const modeSelect = document.getElementById('modal-position-select');
   const exactContainer = document.getElementById('exact-time-container');
@@ -440,3 +477,200 @@ const modeSelect = document.getElementById('modal-position-select');
   });
 
   updateTimeFilterUI(modeSelect.value);
+
+const portToolBtn = document.getElementById("port-tool-btn");
+const portToolModal = document.getElementById("port-tool-modal");
+const closePortModal = document.getElementById("close-port-modal");
+const scanPortsBtn = document.getElementById("scan-ports-btn");
+const portResults = document.getElementById("port-results");
+let autoScanEnabled = false;
+let autoScanIntervalId = null;
+const autoScanToggle = document.getElementById("auto-scan-toggle");
+let lastScannedIndex = 0;
+
+autoScanToggle.addEventListener("change", () => {
+  autoScanEnabled = autoScanToggle.checked;
+
+  if (autoScanEnabled) {
+    startAutoScan();
+  } else {
+    stopAutoScan();
+  }
+});
+
+function startAutoScan() {
+  autoScanIntervalId = setInterval(() => {
+    runPortScan({ silent: true, source: "auto" });
+  }, 10000);
+}
+
+function stopAutoScan() {
+  clearInterval(autoScanIntervalId);
+  autoScanIntervalId = null;
+}
+
+scanPortsBtn.addEventListener("click", () => {
+  runPortScan({ silent: false });
+});
+
+
+// Predetermined list of dangerous ports
+const knownDangerousPorts = [
+  "21",   // FTP
+  "23",   // Telnet
+  "25",   // SMTP
+  "135",  // RPC
+  "139",  // NetBIOS
+  "445",  // SMB
+  "1433", // MSSQL
+  "3306", // MySQL
+  "3389", // RDP
+  "5900", // VNC
+  "6667", // IRC
+  "8080", // Common proxy
+];
+
+portToolBtn.addEventListener("click", () => {
+  portToolModal.classList.remove("hidden");
+});
+
+closePortModal.addEventListener("click", () => {
+  portToolModal.classList.add("hidden");
+});
+
+let portScanTimeoutId = null; 
+
+const alertBox = document.getElementById("port-alert");
+console.log(alertBox);
+const alertSound = document.getElementById("port-alert-sound");
+
+function performPortScanLogic(silent = false, source = "manual") {
+  alertBox.classList.add("hidden");
+  alertSound.pause();
+  alertSound.currentTime = 0;
+
+  const input = document.getElementById("custom-ports").value;
+  const userPorts = input
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => p !== "");
+
+  const allPorts = [...new Set([...knownDangerousPorts, ...userPorts])];
+  const filteredData = applyFilters(globalPacketData);
+
+  let matches = [];
+
+  const packetsToCheck = source === "auto"
+    ? filteredData.slice(lastScannedIndex)
+    : filteredData;
+
+  for (let i = packetsToCheck.length - 1; i >= 0; i--) {
+    const packet = packetsToCheck[i];
+    const srcDetail = `${packet.src}:${packet.src_port}`;
+    const dstDetail = `${packet.dst}:${packet.dst_port}`;
+    const proto = (packet.proto || "Unknown").toLowerCase();
+
+    for (const port of allPorts) {
+      if (String(packet.src_port) === port || String(packet.dst_port) === port) {
+        const match = `<li>${srcDetail} → ${dstDetail} (Protocol: ${proto}, Port: ${port})</li>`;
+        matches.push(match);
+
+        if (source === "auto") {
+          break;
+        }
+      }
+    }
+
+    if (source === "auto" && matches.length) {
+      break;
+    }
+  }
+
+  if (source === "auto") {
+    lastScannedIndex = filteredData.length;
+  }
+
+  if (!silent && source === "manual") {
+    portResults.innerHTML = matches.length
+      ? `<ul>${matches.join("")}</ul>`
+      : "<p>No suspicious ports found.</p>";
+  }
+
+  if (matches.length) {
+    alertBox.classList.remove("hidden");
+    alertSound.play().catch(err => console.warn("Audio play failed:", err));
+
+    if (source === "auto") {
+      const autoScanResults = document.getElementById("auto-scan-results");
+      autoScanResults.innerHTML = `<ul>${matches.join("")}</ul>`;
+    }
+
+    setTimeout(() => {
+      alertBox.classList.add("hidden");
+    }, 6000);
+  }
+}
+
+
+function runPortScan({ silent = false, source = "manual" }) {
+  const loadingOverlay = document.getElementById("port-loading-overlay");
+
+  if (!silent) {
+    loadingOverlay.classList.remove("hidden");
+
+    setTimeout(() => {
+      const delay = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
+
+      portScanTimeoutId = setTimeout(() => {
+        performPortScanLogic(silent, source);
+        loadingOverlay.classList.add("hidden");
+        portScanTimeoutId = null;
+      }, delay);
+    }, 50);
+  } else {
+    performPortScanLogic(silent, source);
+  }
+}
+
+
+document.getElementById("cancel-port-scan").addEventListener("click", () => {
+  if (portScanTimeoutId) {
+    clearTimeout(portScanTimeoutId);
+    portScanTimeoutId = null;
+  }
+
+  document.getElementById("port-loading-overlay").classList.add("hidden");
+  portResults.innerHTML = "<p>Scan cancelled by user.</p>";
+});
+
+
+function exportToCSV(data) {
+  if (!data.length) return;
+  
+  const orderedHeaders = ['time', 'src', 'src_port', 'dst', 'dst_port', 'proto'];
+  const csvRows = [orderedHeaders.join(',')];
+
+  data.forEach(row => {
+    const values = orderedHeaders.map(header => {
+      const val = row[header] === null || row[header] === undefined ? '' : row[header];
+      return `"${String(val).replace(/"/g, '""')}"`;
+    });
+    csvRows.push(values.join(','));
+  });
+
+  const csvContent = csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'packets_export.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const filteredData = applyFilters(globalPacketData);
+  exportToCSV(filteredData);
+});
+makeModalDraggable(portToolModal);
