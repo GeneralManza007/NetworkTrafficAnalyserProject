@@ -491,6 +491,36 @@ const portToolModal = document.getElementById("port-tool-modal");
 const closePortModal = document.getElementById("close-port-modal");
 const scanPortsBtn = document.getElementById("scan-ports-btn");
 const portResults = document.getElementById("port-results");
+let autoScanEnabled = false;
+let autoScanIntervalId = null;
+const autoScanToggle = document.getElementById("auto-scan-toggle");
+let lastScannedIndex = 0;
+
+autoScanToggle.addEventListener("change", () => {
+  autoScanEnabled = autoScanToggle.checked;
+
+  if (autoScanEnabled) {
+    startAutoScan();
+  } else {
+    stopAutoScan();
+  }
+});
+
+function startAutoScan() {
+  autoScanIntervalId = setInterval(() => {
+    runPortScan({ silent: true, source: "auto" });
+  }, 10000);
+}
+
+function stopAutoScan() {
+  clearInterval(autoScanIntervalId);
+  autoScanIntervalId = null;
+}
+
+scanPortsBtn.addEventListener("click", () => {
+  runPortScan({ silent: false });
+});
+
 
 // Predetermined list of dangerous ports
 const knownDangerousPorts = [
@@ -516,48 +546,104 @@ closePortModal.addEventListener("click", () => {
   portToolModal.classList.add("hidden");
 });
 
-let portScanTimeoutId = null; // Track timeout globally
+let portScanTimeoutId = null; 
 
-scanPortsBtn.addEventListener("click", () => {
-  const loadingOverlay = document.getElementById("port-loading-overlay");
-  loadingOverlay.classList.remove("hidden");
+const alertBox = document.getElementById("port-alert");
+console.log(alertBox);
+const alertSound = document.getElementById("port-alert-sound");
 
-  const delay = Math.floor(Math.random() * 16) + 5;
+function performPortScanLogic(silent = false, source = "manual") {
+  alertBox.classList.add("hidden");
+  alertSound.pause();
+  alertSound.currentTime = 0;
 
-  portScanTimeoutId = setTimeout(() => {
-    const input = document.getElementById("custom-ports").value;
-    const userPorts = input
-      .split(',')
-      .map(p => p.trim())
-      .filter(p => p !== "");
+  const input = document.getElementById("custom-ports").value;
+  const userPorts = input
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => p !== "");
 
-    const allPorts = [...new Set([...knownDangerousPorts, ...userPorts])];
+  const allPorts = [...new Set([...knownDangerousPorts, ...userPorts])];
+  const filteredData = applyFilters(globalPacketData);
 
-    const filteredData = applyFilters(globalPacketData); 
-    let matches = [];
+  let matches = [];
 
-    filteredData.forEach(packet => {
-      const srcDetail = `${packet.src}:${packet.src_port}`;
-      const dstDetail = `${packet.dst}:${packet.dst_port}`;
-      const proto = (packet.proto || "Unknown").toLowerCase();
+  // Determine packets to check:
+  const packetsToCheck = source === "auto"
+    ? filteredData.slice(lastScannedIndex)
+    : filteredData;
 
-      allPorts.forEach(port => {
-        if (String(packet.src_port) === port || String(packet.dst_port) === port) {
-          matches.push(`<li>${srcDetail} → ${dstDetail} (Protocol: ${proto}, Port: ${port})</li>`);
+  for (let i = packetsToCheck.length - 1; i >= 0; i--) {
+    const packet = packetsToCheck[i];
+    const srcDetail = `${packet.src}:${packet.src_port}`;
+    const dstDetail = `${packet.dst}:${packet.dst_port}`;
+    const proto = (packet.proto || "Unknown").toLowerCase();
+
+    for (const port of allPorts) {
+      if (String(packet.src_port) === port || String(packet.dst_port) === port) {
+        const match = `<li>${srcDetail} → ${dstDetail} (Protocol: ${proto}, Port: ${port})</li>`;
+        matches.push(match);
+
+        if (source === "auto") {
+          break;
         }
-      });
-    });
+      }
+    }
 
+    if (source === "auto" && matches.length) {
+      break;
+    }
+  }
+
+  // Update last scanned index
+  if (source === "auto") {
+    lastScannedIndex = filteredData.length;
+  }
+
+  // Manual scan: Show full result set
+  if (!silent && source === "manual") {
     portResults.innerHTML = matches.length
       ? `<ul>${matches.join("")}</ul>`
       : "<p>No suspicious ports found.</p>";
+  }
 
-    loadingOverlay.classList.add("hidden");
-    portScanTimeoutId = null;
-  }, delay * 1000);
-});
+  if (matches.length) {
+    alertBox.classList.remove("hidden");
+    alertSound.play().catch(err => console.warn("Audio play failed:", err));
 
-// Cancel button logic
+    if (source === "auto") {
+      const autoScanResults = document.getElementById("auto-scan-results");
+      autoScanResults.innerHTML = `<ul>${matches.join("")}</ul>`;
+    }
+
+    setTimeout(() => {
+      alertBox.classList.add("hidden");
+    }, 6000);
+  }
+}
+
+
+function runPortScan({ silent = false, source = "manual" }) {
+  const loadingOverlay = document.getElementById("port-loading-overlay");
+
+  if (!silent) {
+    loadingOverlay.classList.remove("hidden");
+
+    setTimeout(() => {
+      const delay = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
+
+      portScanTimeoutId = setTimeout(() => {
+        performPortScanLogic(silent, source);
+        loadingOverlay.classList.add("hidden");
+        portScanTimeoutId = null;
+      }, delay);
+    }, 50);
+  } else {
+    performPortScanLogic(silent, source);
+  }
+}
+
+
 document.getElementById("cancel-port-scan").addEventListener("click", () => {
   if (portScanTimeoutId) {
     clearTimeout(portScanTimeoutId);
