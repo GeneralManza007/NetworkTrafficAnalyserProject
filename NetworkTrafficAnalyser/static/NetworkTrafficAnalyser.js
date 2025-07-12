@@ -756,4 +756,18 @@ cancelScanBtn.addEventListener("click", () => {
   blacklistResults.innerHTML = "<p>Scan cancelled by user.</p>";
 });
 
+const fileInput = document.getElementById("blacklist-file");
+const fileNameDisplay = document.getElementById("blacklist-file-name");
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    fileNameDisplay.textContent = `✔ File loaded: ${fileInput.files[0].name}`;
+    fileNameDisplay.style.color = "#00ff99";
+  } else {
+    fileNameDisplay.textContent = "No file selected";
+    fileNameDisplay.style.color = "#ccc";
+  }
+});
+
+
 makeModalDraggable(blacklistModal);

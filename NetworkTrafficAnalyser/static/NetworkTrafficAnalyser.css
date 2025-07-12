@@ -503,3 +503,12 @@ canvas {
   font-size: 18px;
   cursor: pointer;
 }
+
+.file-status {
+  font-size: 0.9rem;
+  color: #ccc;
+  display: flex;
+  align-self: center;
+  justify-self: center;
+  margin-top: 5px;
+}
