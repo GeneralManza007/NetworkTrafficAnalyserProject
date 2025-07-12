@@ -309,7 +309,7 @@ function updateChartsAndPackets() {
       protocolChart.data.datasets[0].data = dynamicCounts;
       protocolChart.data.datasets[0].backgroundColor = dynamicColors;
       protocolChart.update();
-      
+
       Object.keys(dynamicProtocolCounts).forEach(proto => {
         if (!protocolHistory[proto]) {
           protocolHistory[proto] = [];
@@ -611,9 +611,9 @@ function performPortScanLogic(silent = false, source = "manual") {
   }
 }
 
+const loadingOverlay = document.getElementById("global-loading-overlay");
 
 function runPortScan({ silent = false, source = "manual" }) {
-  const loadingOverlay = document.getElementById("port-loading-overlay");
 
   if (!silent) {
     loadingOverlay.classList.remove("hidden");
@@ -674,3 +674,86 @@ document.getElementById('export-btn').addEventListener('click', () => {
   exportToCSV(filteredData);
 });
 makeModalDraggable(portToolModal);
+
+const blacklistToolBtn = document.getElementById("blacklist-tool-btn");
+const blacklistModal = document.getElementById("blacklist-tool-modal");
+const closeBlacklistModal = document.getElementById("close-blacklist-modal");
+const runBlacklistScan = document.getElementById("run-blacklist-scan");
+const blacklistResults = document.getElementById("blacklist-results");
+let scanCancelled = false;
+
+
+// Show/Hide modal
+blacklistToolBtn.addEventListener("click", () => {
+  blacklistModal.classList.remove("hidden");
+});
+closeBlacklistModal.addEventListener("click", () => {
+  blacklistModal.classList.add("hidden");
+});
+
+runBlacklistScan.addEventListener("click", () => {
+  scanCancelled = false; 
+  const fileInput = document.getElementById("blacklist-file");
+  const manualInput = document.getElementById("manual-blacklist-input").value;
+
+  loadingOverlay.classList.remove("hidden"); 
+
+  setTimeout(() => {
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const fileText = e.target.result;
+        const blacklist = parseBlacklist(fileText, manualInput);
+        scanAgainstBlacklist(blacklist);
+        loadingOverlay.classList.add("hidden"); 
+      };
+      reader.readAsText(file);
+    } else {
+      const blacklist = parseBlacklist("", manualInput);
+      scanAgainstBlacklist(blacklist);
+      loadingOverlay.classList.add("hidden"); 
+    }
+  }, Math.random() * 1500 + 500); 
+});
+
+function parseBlacklist(fileContent, manualInput) {
+  const combined = `${fileContent}\n${manualInput}`;
+  return new Set(
+    combined
+      .split(/[\n,]/)
+      .map(ip => ip.trim())
+      .filter(ip => ip.length > 0)
+  );
+}
+function scanAgainstBlacklist(blacklistSet) {
+  if (scanCancelled) return;
+
+  const filteredData = applyFilters(globalPacketData);
+  const hits = [];
+
+  for (const packet of filteredData) {
+    if (scanCancelled) return; // exit mid-loop if cancelled
+    if (blacklistSet.has(packet.src) || blacklistSet.has(packet.dst)) {
+      hits.push(`<li>${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})</li>`);
+    }
+  }
+
+  if (!scanCancelled) {
+    blacklistResults.innerHTML = hits.length
+      ? `<ul>${hits.join("")}</ul>`
+      : "<p>No matches found.</p>";
+  }
+}
+
+
+const cancelScanBtn = document.getElementById("cancel-port-scan");
+
+cancelScanBtn.addEventListener("click", () => {
+  scanCancelled = true;
+  loadingOverlay.classList.add("hidden");
+  blacklistResults.innerHTML = "<p>Scan cancelled by user.</p>";
+});
+
+makeModalDraggable(blacklistModal);
