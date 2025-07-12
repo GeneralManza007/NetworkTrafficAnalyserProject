@@ -11,7 +11,7 @@
   <div id="tools-menu-button">
     <img src="{{ url_for('static', filename='icons/tools-icon.png') }}" alt="Tools" />
   </div>
-  
+
   <div id="tools-panel" class="hidden">
     <button class="tool-btn" id="time-tool-btn">
       <img src="{{ url_for('static', filename='icons/stopwatch-icon.png') }}" alt="Time Tool" />
@@ -20,6 +20,9 @@
     <button class="tool-btn" id="port-tool-btn">
     <img src="{{ url_for('static', filename='icons/port-icon.png') }}" alt="Port Tool" />
     Port Tool
+    <button class="tool-btn" id="blacklist-tool-btn"> 
+      <img src="{{ url_for('static', filename='icons/blacklist-icon.png') }}" alt="Blacklist Tool" />
+      Blacklist Tool
   </button>
   </div>
   <div id="time-tool-modal" class="hidden">
@@ -58,7 +61,24 @@
   <button id="scan-ports-btn" class="scan-ports-btn">Scan Traffic</button>
   <div id="port-results"></div>
 </div>
+<div id="blacklist-tool-modal" class="hidden">
+  <div class="modal-content">
+    <span id="close-blacklist-modal" class="close-button">&times;</span>
+    <div class="file-upload-wrapper">
+    <p><small>Upload a .txt file with one IP per line or comma-separated. No headers or labels.</small></p>
+    <label for="blacklist-file" class="custom-file-upload">
+      📁 Upload Blacklist File
+    </label>
+    <input type="file" id="blacklist-file" accept=".txt" />
+  </div>
+    <p>Or manually enter blacklisted IPs (comma or newline separated):</p>
+    <textarea id="manual-blacklist-input" rows="6" placeholder="e.g., 192.168.1.1, 10.0.0.5"></textarea>
 
+    <button id="run-blacklist-scan">Scan</button>
+
+    <div id="blacklist-results" class="results"></div>
+  </div>
+</div>
   <div id="control-buttons">
   <button id="play-btn">▶</button>
   <button id="pause-btn">⏸</button>
@@ -109,10 +129,10 @@
     <tbody id="packet-table"></tbody>
   </table>
 
-  <div id="port-loading-overlay" class="hidden">
+  <div id="global-loading-overlay" class="hidden">
   <button id="cancel-port-scan" class="close-btn">×</button>
   <div class="loader"></div>
-  <p>Scanning traffic for suspicious ports...</p>
+  <p>Scanning Traffic...</p>
 </div>
 <div id="port-alert" class="hidden warning-modal">
   <p><strong>⚠️ Suspicious Port Activity Detected!</strong></p>
