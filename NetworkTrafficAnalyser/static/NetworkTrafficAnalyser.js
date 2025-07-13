@@ -542,7 +542,7 @@ let portScanTimeoutId = null;
 
 const alertBox = document.getElementById("port-alert");
 console.log(alertBox);
-const alertSound = document.getElementById("port-alert-sound");
+const alertSound = document.getElementById("alert-sound");
 
 function performPortScanLogic(silent = false, source = "manual") {
   alertBox.classList.add("hidden");
@@ -727,6 +727,9 @@ function parseBlacklist(fileContent, manualInput) {
       .filter(ip => ip.length > 0)
   );
 }
+const alertBlacklistBox = document.getElementById("blacklist-alert-box");
+const alertBlacklistSound = document.getElementById("alert-sound");
+
 function scanAgainstBlacklist(blacklistSet) {
   if (scanCancelled) return;
 
@@ -734,18 +737,31 @@ function scanAgainstBlacklist(blacklistSet) {
   const hits = [];
 
   for (const packet of filteredData) {
-    if (scanCancelled) return; // exit mid-loop if cancelled
+    if (scanCancelled) return;
+
     if (blacklistSet.has(packet.src) || blacklistSet.has(packet.dst)) {
       hits.push(`<li>${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})</li>`);
     }
   }
 
   if (!scanCancelled) {
+    if (hits.length) {
+      alertBlacklistBox.classList.remove("hidden");
+      alertBlacklistSound.pause();
+      alertBlacklistSound.currentTime = 0;
+      alertBlacklistSound.play().catch(err => console.warn("Audio play failed:", err));
+
+      setTimeout(() => {
+        alertBlacklistBox.classList.add("hidden");
+      }, 6000);
+    }
+
     blacklistResults.innerHTML = hits.length
       ? `<ul>${hits.join("")}</ul>`
       : "<p>No matches found.</p>";
   }
 }
+
 
 
 const cancelScanBtn = document.getElementById("cancel-port-scan");
