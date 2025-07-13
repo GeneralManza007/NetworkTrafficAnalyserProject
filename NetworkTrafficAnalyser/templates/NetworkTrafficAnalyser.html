@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <audio id="port-alert-sound" src="{{ url_for('static', filename='sounds/warning.mp3') }}" preload="auto"></audio>
+  <audio id="alert-sound" src="{{ url_for('static', filename='sounds/warning.mp3') }}" preload="auto"></audio>
   <div id="tools-menu-button">
     <img src="{{ url_for('static', filename='icons/tools-icon.png') }}" alt="Tools" />
   </div>
@@ -139,7 +139,7 @@
   <p><strong>⚠️ Suspicious Port Activity Detected!</strong></p>
   <div id="auto-scan-results" style="max-height: 150px;"></div>
 </div>
-
+<div id="blacklist-alert-box" class="hidden">⚠ Blacklist Match Found!</div>
   <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
 </body>
 </html>
