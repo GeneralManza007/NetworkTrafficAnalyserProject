@@ -424,7 +424,6 @@ canvas {
   display: none;
 }
 
-/* Style the custom upload button */
 .custom-file-upload {
   display: inline-block;
   padding: 10px 14px;
@@ -511,4 +510,52 @@ canvas {
   align-self: center;
   justify-self: center;
   margin-top: 5px;
+}
+
+.file-upload-instructions {
+  margin-top: 30px;
+}
+
+.options-bar {
+  position: absolute;
+  top: 10 px;
+  left: 10px;
+}
+
+.options-icon {
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: #444;
+  color: white;
+}
+
+.options-dropdown {
+  margin-top: 5px;
+  background-color: #222;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1000;
+  min-width: 100px;
+}
+
+.option-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: white;
+  border-radius: 10px;
+  border: black 1px solid;
+  margin-top: 5px;
+}
+
+.option-item:hover {
+  background-color: #333;
+}
+
+.option-item.active {
+  background-color: #2ecc71; 
+  color: black;
 }

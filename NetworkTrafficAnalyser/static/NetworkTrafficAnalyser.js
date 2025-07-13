@@ -787,3 +787,19 @@ fileInput.addEventListener("change", () => {
 
 
 makeModalDraggable(blacklistModal);
+
+const optionsToggle = document.getElementById("options-toggle");
+const optionsMenu = document.getElementById("blacklist-options-menu");
+const optionItems = document.querySelectorAll(".option-item");
+
+optionsToggle.addEventListener("click", () => {
+  optionsMenu.classList.toggle("hidden");
+});
+
+optionItems.forEach(item => {
+  item.addEventListener("click", () => {
+    item.classList.toggle("active");
+    // Here you can optionally store the state
+    // e.g., const isAutoScanOn = item.dataset.option === "auto-scan" && item.classList.contains("active");
+  });
+});

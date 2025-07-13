@@ -63,9 +63,16 @@
 </div>
 <div id="blacklist-tool-modal" class="hidden">
   <div class="modal-content">
+    <div class="options-bar">
+      <div class="options-icon" id="options-toggle">⚙</div>
+      <div class="options-dropdown hidden" id="blacklist-options-menu">
+        <div class="option-item" data-option="auto-scan">Auto Scan</div>
+        <div class="option-item" data-option="block">Block</div>
+      </div>
+    </div>
     <span id="close-blacklist-modal" class="close-button">&times;</span>
     <div class="file-upload-wrapper">
-    <p><small>Upload a .txt file with one IP per line or comma-separated. No headers or labels.</small></p>
+    <p class="file-upload-instructions"><small>Upload a .txt file with one IP per line or comma-separated. No headers or labels.</small></p>
     <label for="blacklist-file" class="custom-file-upload">
       📁 Upload Blacklist File
     </label>
