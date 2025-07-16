@@ -518,7 +518,7 @@ canvas {
 
 .options-bar {
   position: absolute;
-  top: 10 px;
+  top: 5 px;
   left: 10px;
 }
 
@@ -527,7 +527,7 @@ canvas {
   font-size: 18px;
   padding: 4px 8px;
   border-radius: 4px;
-  background-color: #444;
+  background: none;
   color: white;
 }
 
