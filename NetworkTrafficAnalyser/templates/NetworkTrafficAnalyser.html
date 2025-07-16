@@ -66,7 +66,13 @@
     <div class="options-bar">
       <div class="options-icon" id="options-toggle">⚙</div>
       <div class="options-dropdown hidden" id="blacklist-options-menu">
-        <div class="option-item" data-option="auto-scan">Auto Scan</div>
+        <div class="option-item with-submenu" data-option="auto-scan">
+          Auto Scan
+          <div class="submenu" id="scan-direction-submenu">
+            <div class="submenu-item" data-scan-dir="oldest">Scan from Oldest</div>
+            <div class="submenu-item" data-scan-dir="latest">Scan from Latest</div>
+          </div>
+            </div>
         <div class="option-item" data-option="block">Block</div>
       </div>
     </div>
