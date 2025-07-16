@@ -559,3 +559,37 @@ canvas {
   background-color: #2ecc71; 
   color: black;
 }
+
+.with-submenu {
+  position: relative;
+}
+
+.submenu {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 110%;
+  background: #222;
+  border: 1px solid #444;
+  padding: 5px;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.with-submenu:hover {
+  background-color: #333;
+}
+
+.submenu-item {
+  padding: 5px;
+  cursor: pointer;
+}
+
+.submenu-item:hover {
+  background-color: #333;
+}
+
+.submenu-item.active {
+  background-color: #005577;
+  color: white;
+}
