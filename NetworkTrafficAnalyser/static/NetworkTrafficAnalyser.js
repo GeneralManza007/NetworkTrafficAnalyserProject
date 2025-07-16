@@ -691,6 +691,7 @@ let autoBlacklistScanIntervalId = null;
 let lastBlacklistScannedIndex = 0;
 let blacklistAlertQueue = [];
 let isShowingAlert = false;
+let blacklistScanDirection = "oldest";
 
 function sendBlockedIPsToBackend() {
   const ipsToBlock = Array.from(blockedIPs); // Convert Set to Array
@@ -882,9 +883,14 @@ function runBlacklistAutoScan() {
 
 function scanAgainstBlacklistAuto(blacklistSet) {
   if (!autoBlacklistScanEnabled) return;
-
   const filteredData = applyFilters(globalPacketData);
-  const packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
+  let packetsToCheck;
+      if (blacklistScanDirection === "oldest") {
+        packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
+      } else {
+        packetsToCheck = filteredData.slice().reverse(); 
+        lastBlacklistScannedIndex = filteredData.length;
+      }
   const matches = [];
 
   for (const packet of packetsToCheck) {
@@ -997,3 +1003,46 @@ function showBlacklistAlert(detail) {
     alertBlacklistBox.classList.add("hidden");
   }, 6000);
 }
+
+const submenuParent = document.querySelector(".with-submenu");
+const submenu = submenuParent.querySelector(".submenu");
+
+let submenuTimeout;
+
+submenuParent.addEventListener("mouseenter", () => {
+  clearTimeout(submenuTimeout);
+  submenu.style.display = "block";
+});
+
+submenuParent.addEventListener("mouseleave", () => {
+  submenuTimeout = setTimeout(() => {
+    submenu.style.display = "none";
+  }, 200); // delay before hiding submenu
+});
+
+submenu.addEventListener("mouseenter", () => {
+  clearTimeout(submenuTimeout);
+});
+
+submenu.addEventListener("mouseleave", () => {
+  submenuTimeout = setTimeout(() => {
+    submenu.style.display = "none";
+  }, 200);
+});
+
+
+document.querySelectorAll(".submenu-item").forEach(item => {
+  item.addEventListener("click", () => {
+    blacklistScanDirection = item.dataset.scanDir;
+    console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);
+  });
+});
+
+document.querySelectorAll(".submenu-item").forEach(item => {
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".submenu-item").forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    blacklistScanDirection = item.dataset.scanDir;
+  });
+});
+
