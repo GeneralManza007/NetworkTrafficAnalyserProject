@@ -1,4 +1,5 @@
 let globalPacketData = [];
+const blockedIPs = new Set();
 
 function renderPackets(data) {
   const tableBody = document.getElementById('packet-table');
@@ -22,12 +23,16 @@ function fetchPackets() {
   fetch('/api/packets')
     .then(response => response.json())
     .then(data => {
-      globalPacketData = data;
-      const filteredData = applyFilters(data);
+      globalPacketData = data.filter(pkt => 
+        !blockedIPs.has(pkt.src) && !blockedIPs.has(pkt.dst)
+      );
+
+      const filteredData = applyFilters(globalPacketData);
       renderPackets(filteredData);
     })
     .catch(error => console.error('Error fetching packets:', error));
 }
+
 
 document.getElementById('protocolFilter').addEventListener('input', fetchPackets);
 document.getElementById('srcFilter').addEventListener('input', fetchPackets);
@@ -681,9 +686,62 @@ const closeBlacklistModal = document.getElementById("close-blacklist-modal");
 const runBlacklistScan = document.getElementById("run-blacklist-scan");
 const blacklistResults = document.getElementById("blacklist-results");
 let scanCancelled = false;
+let autoBlacklistScanEnabled = false;
+let autoBlacklistScanIntervalId = null;
+let lastBlacklistScannedIndex = 0;
+let blacklistAlertQueue = [];
+let isShowingAlert = false;
+
+function sendBlockedIPsToBackend() {
+  const ipsToBlock = Array.from(blockedIPs); // Convert Set to Array
+
+  fetch('/api/block_ips', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ips: ipsToBlock })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("✅ Sent to backend:", data.blocked);
+  })
+  .catch(error => {
+    console.error("❌ Error sending blocked IPs:", error);
+  });
+}
+
+function sendUnblockedIPsToBackend() {
+  const ipsToUnblock = Array.from(blockedIPs);
+
+  fetch('/api/unblock_ips', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ips: ipsToUnblock })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("✅ Unblocked on backend:", data.blocked);
+  })
+  .catch(error => {
+    console.error("❌ Error unblocking IPs:", error);
+  });
+}
 
 
-// Show/Hide modal
+function startAutoBlacklistScan() {
+  autoBlacklistScanIntervalId = setInterval(() => {
+    runBlacklistAutoScan(); 
+  }, 10000); 
+}
+
+function stopAutoBlacklistScan() {
+  if (autoBlacklistScanIntervalId !== null) {
+    clearInterval(autoBlacklistScanIntervalId);
+    autoBlacklistScanIntervalId = null;
+    console.log("⛔ Interval cleared!");
+  }
+  autoBlacklistScanEnabled = false;
+}
+
 blacklistToolBtn.addEventListener("click", () => {
   blacklistModal.classList.remove("hidden");
 });
@@ -736,6 +794,9 @@ function scanAgainstBlacklist(blacklistSet) {
   const filteredData = applyFilters(globalPacketData);
   const hits = [];
 
+  alertBlacklistBox.innerText = "";
+  alertBlacklistBox.classList.add("hidden");
+
   for (const packet of filteredData) {
     if (scanCancelled) return;
 
@@ -746,7 +807,9 @@ function scanAgainstBlacklist(blacklistSet) {
 
   if (!scanCancelled) {
     if (hits.length) {
+      alertBlacklistBox.innerText = `⚠ Blacklist Match Found`;
       alertBlacklistBox.classList.remove("hidden");
+
       alertBlacklistSound.pause();
       alertBlacklistSound.currentTime = 0;
       alertBlacklistSound.play().catch(err => console.warn("Audio play failed:", err));
@@ -761,6 +824,7 @@ function scanAgainstBlacklist(blacklistSet) {
       : "<p>No matches found.</p>";
   }
 }
+
 
 
 
@@ -784,9 +848,74 @@ fileInput.addEventListener("change", () => {
     fileNameDisplay.style.color = "#ccc";
   }
 });
-
-
 makeModalDraggable(blacklistModal);
+
+function runBlacklistAutoScan() {
+  if (!autoBlacklistScanEnabled) return;
+
+  const fileInput = document.getElementById("blacklist-file");
+  const manualInput = document.getElementById("manual-blacklist-input").value;
+
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      if (!autoBlacklistScanEnabled) {
+        console.log("🛑 Scan skipped after file read — auto scan disabled.");
+        return;
+      }
+
+      const fileText = e.target.result;
+      const blacklist = parseBlacklist(fileText, manualInput);
+      scanAgainstBlacklistAuto(blacklist);
+    };
+
+    reader.readAsText(file);
+  } else {
+    if (!autoBlacklistScanEnabled) return;
+    const blacklist = parseBlacklist("", manualInput);
+    scanAgainstBlacklistAuto(blacklist);
+  }
+}
+
+
+function scanAgainstBlacklistAuto(blacklistSet) {
+  if (!autoBlacklistScanEnabled) return;
+
+  const filteredData = applyFilters(globalPacketData);
+  const packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
+  const matches = [];
+
+  for (const packet of packetsToCheck) {
+    if (!autoBlacklistScanEnabled) break; 
+
+    if (blacklistSet.has(packet.src) || blacklistSet.has(packet.dst)) {
+      const detail = `${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})`;
+      matches.push(`<li>${detail}</li>`);
+      blacklistAlertQueue.push(detail);
+    }
+  }
+
+  lastBlacklistScannedIndex = filteredData.length;
+  processNextBlacklistAlert(); 
+}
+
+
+function processNextBlacklistAlert() {
+  if (isShowingAlert || blacklistAlertQueue.length === 0) return;
+
+  isShowingAlert = true;
+  const detail = blacklistAlertQueue.shift();
+
+  showBlacklistAlert(detail);
+
+  setTimeout(() => {
+    isShowingAlert = false;
+    processNextBlacklistAlert(); 
+  }, 6000); 
+}
+
 
 const optionsToggle = document.getElementById("options-toggle");
 const optionsMenu = document.getElementById("blacklist-options-menu");
@@ -799,7 +928,72 @@ optionsToggle.addEventListener("click", () => {
 optionItems.forEach(item => {
   item.addEventListener("click", () => {
     item.classList.toggle("active");
-    // Here you can optionally store the state
-    // e.g., const isAutoScanOn = item.dataset.option === "auto-scan" && item.classList.contains("active");
+    const optionType = item.dataset.option;
+    switch (optionType) {
+      case "auto-scan":
+        autoBlacklistScanEnabled = item.classList.contains("active");
+        autoBlacklistScanEnabled ? startAutoBlacklistScan() : stopAutoBlacklistScan();
+        break;
+
+      case "block":
+        const isBlocking = item.classList.contains("active");
+        if (isBlocking) {
+          const fileInput = document.getElementById("blacklist-file");
+          const manualInput = document.getElementById("manual-blacklist-input").value;
+
+          if (fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const fileText = e.target.result;
+              const blacklist = parseBlacklist(fileText, manualInput);
+              blacklist.forEach(ip => blockedIPs.add(ip));
+                console.log("🚫 Blocking enabled for IPs:", [...blockedIPs]);
+                sendBlockedIPsToBackend();  
+                fetchPackets();
+            };
+            reader.readAsText(file);
+          } else {
+            const blacklist = parseBlacklist("", manualInput);
+            blacklist.forEach(ip => blockedIPs.add(ip));
+            console.log("🚫 Blocking enabled for IPs:", [...blockedIPs]);
+            sendBlockedIPsToBackend();  
+            fetchPackets();
+          }
+        } else {
+              sendUnblockedIPsToBackend();     
+              blockedIPs.clear();             
+              console.log("✅ Blocking disabled. IPs cleared.");
+              fetchPackets();
+            }
+        break;
+    }
   });
 });
+
+
+function showBlacklistAlert(detail) {
+
+  alertBlacklistBox.classList.remove("hidden");
+  alertBlacklistBox.innerText = `⚠ Blacklist Match Found: ${detail}`;
+
+  alertBlacklistSound.pause();
+  alertBlacklistSound.currentTime = 0;
+  alertBlacklistSound.play().catch(err => console.warn("Audio play failed:", err));
+
+  const autoResults = document.getElementById("blacklist-results");
+  let ul = autoResults.querySelector("ul");
+
+  if (!ul) {
+    ul = document.createElement("ul");
+    autoResults.innerHTML = "";
+    autoResults.appendChild(ul);
+  }
+
+  const li = document.createElement("li");
+  li.innerText = detail;
+  ul.appendChild(li);
+
+  setTimeout(() => {
+    alertBlacklistBox.classList.add("hidden");
+  }, 6000);
+}
