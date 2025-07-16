@@ -2,13 +2,14 @@ from flask import Flask, jsonify, render_template, send_from_directory
 from scapy.all import sniff, IP, TCP
 import os
 from threading import Thread
+from flask import request
 import time
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
+blocked_ips = set()
 captured_packets = []
 monitoring = True
 
-# Map protocol numbers to names
 proto_map = {0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6: "TCP", 7: "CBT", 8: "EGP", 9: "IGP", 10: "BBN-RCC-MON", 11: "NVP-II", 12: "PUP", 13: "ARGUS (deprecated)", 14: "EMCON", 15: "XNET", 16: "CHAOS", 17: "UDP", 18: "MUX", 19: "DCN-MEAS", 20: "HMP", 21: "PRM", 22: "XNS-IDP", 23: "TRUNK-1", 24: "TRUNK-2", 
              25: "LEAF-1", 26: "LEAF-2", 27: "RDP", 28: "IRTP", 29: "ISO-TP4", 30: "NETBLT", 31: "MFE-NSP", 32: "MERIT-INP", 33: "DCCP", 34: "3PC", 35: "IDPR", 36: "XTP", 37: "DDP", 38: "IDPR-CMTP", 39: "TP++", 40: "IL", 41: "IPv6", 42: "SDRP", 43: "IPv6-Route", 44: "IPv6-Frag", 45: "IDRP", 46: "RSVP", 47: "GRE", 48: "DSR", 
              49: "BNA", 50: "ESP", 51: "AH", 52: "I-NLSP", 53: "SWIPE (deprecated)", 54: "NARP", 55: "Min-IPv4", 56: "TLSP", 57: "SKIP", 58: "IPv6-ICMP", 59: "IPv6-NoNxt", 60: "IPv6-Opts", 61: "any host internal protocol", 62: "CFTP", 63: "any local network", 64: "SAT-EXPAK", 65: "KRYPTOLAN", 66: "RVD", 67: "IPPC", 
@@ -39,33 +40,54 @@ def start_monitoring():
     return jsonify({'status': 'started'})
 
 def packet_callback(packet):
-    global total_packets, monitoring
-    if not monitoring:
+    global total_packets, monitoring, blocked_ips
+    if not monitoring or IP not in packet:
         return
 
-    if IP in packet:
-        proto_num = packet.proto
-        proto_name = proto_map.get(proto_num, f"Unknown ({proto_num})")
+    src_ip = packet[IP].src
+    dst_ip = packet[IP].dst
 
-        src_port = dst_port = None
+    if src_ip in blocked_ips or dst_ip in blocked_ips:
+        return
 
-        # Check for TCP or UDP layers to get ports
-        if packet.haslayer(TCP):
-            src_port = packet[TCP].sport
-            dst_port = packet[TCP].dport
-        elif packet.haslayer("UDP"):
-            src_port = packet["UDP"].sport
-            dst_port = packet["UDP"].dport
+    proto_num = packet.proto
+    proto_name = proto_map.get(proto_num, f"Unknown ({proto_num})")
 
-        total_packets += 1
-        captured_packets.append({
-            "src": packet[IP].src,
-            "dst": packet[IP].dst,
-            "proto": proto_name,
-            "src_port": src_port,
-            "dst_port": dst_port,
-            "time": time.strftime('%H:%M:%S'),
-        })
+    src_port = dst_port = None
+
+    if packet.haslayer(TCP):
+        src_port = packet[TCP].sport
+        dst_port = packet[TCP].dport
+    elif packet.haslayer("UDP"):
+        src_port = packet["UDP"].sport
+        dst_port = packet["UDP"].dport
+
+    total_packets += 1
+    captured_packets.append({
+        "src": src_ip,
+        "dst": dst_ip,
+        "proto": proto_name,
+        "src_port": src_port,
+        "dst_port": dst_port,
+        "time": time.strftime('%H:%M:%S'),
+    })
+
+
+@app.route("/api/block_ips", methods=["POST"])
+def block_ips():
+    global blocked_ips
+    data = request.get_json()
+    ips = data.get("ips", [])
+    blocked_ips.update(ips)
+    return jsonify({"blocked": list(blocked_ips)})
+
+@app.route("/api/unblock_ips", methods=["POST"])
+def unblock_ips():
+    global blocked_ips
+    data = request.get_json()
+    ips = data.get("ips", [])
+    blocked_ips.difference_update(ips)
+    return jsonify({"blocked": list(blocked_ips)})
 
 def start_sniffer():
     sniff(filter="ip", prn=packet_callback, store=False)
