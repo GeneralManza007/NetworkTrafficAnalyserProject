@@ -688,13 +688,13 @@ const blacklistResults = document.getElementById("blacklist-results");
 let scanCancelled = false;
 let autoBlacklistScanEnabled = false;
 let autoBlacklistScanIntervalId = null;
-let lastBlacklistScannedIndex = 0;
+let lastBlacklistScannedIndex = null;
 let blacklistAlertQueue = [];
 let isShowingAlert = false;
 let blacklistScanDirection = "oldest";
 
 function sendBlockedIPsToBackend() {
-  const ipsToBlock = Array.from(blockedIPs); // Convert Set to Array
+  const ipsToBlock = Array.from(blockedIPs);
 
   fetch('/api/block_ips', {
     method: "POST",
@@ -853,7 +853,6 @@ makeModalDraggable(blacklistModal);
 
 function runBlacklistAutoScan() {
   if (!autoBlacklistScanEnabled) return;
-
   const fileInput = document.getElementById("blacklist-file");
   const manualInput = document.getElementById("manual-blacklist-input").value;
 
@@ -880,17 +879,36 @@ function runBlacklistAutoScan() {
   }
 }
 
-
 function scanAgainstBlacklistAuto(blacklistSet) {
+ const filteredData = applyFilters(globalPacketData);
   if (!autoBlacklistScanEnabled) return;
-  const filteredData = applyFilters(globalPacketData);
-  let packetsToCheck;
-      if (blacklistScanDirection === "oldest") {
-        packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
-      } else {
-        packetsToCheck = filteredData.slice().reverse(); 
-        lastBlacklistScannedIndex = filteredData.length;
-      }
+
+  let packetsToCheck = [];
+
+  if (blacklistScanDirection === "oldest") {
+    packetsToCheck = filteredData.slice(lastBlacklistScannedIndex || 0);
+    lastBlacklistScannedIndex = filteredData.length;
+
+  } else if (blacklistScanDirection === "latest") {
+    packetsToCheck = filteredData.slice().reverse();
+    lastBlacklistScannedIndex = filteredData.length;
+
+  } else if (blacklistScanDirection === "latest-forward") {
+    if (lastBlacklistScannedIndex == null) {
+      console.log("⚠️ Skipping first scan in 'latest-forward' mode.");
+      lastBlacklistScannedIndex = filteredData.length;
+      return;
+    }
+
+    if (lastBlacklistScannedIndex >= filteredData.length) {
+      console.log("✅ No new packets to scan.");
+      return;
+    }
+    
+    packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
+    lastBlacklistScannedIndex = filteredData.length;
+  }
+
   const matches = [];
 
   for (const packet of packetsToCheck) {
@@ -1017,7 +1035,7 @@ submenuParent.addEventListener("mouseenter", () => {
 submenuParent.addEventListener("mouseleave", () => {
   submenuTimeout = setTimeout(() => {
     submenu.style.display = "none";
-  }, 200); // delay before hiding submenu
+  }, 200); 
 });
 
 submenu.addEventListener("mouseenter", () => {
@@ -1032,17 +1050,22 @@ submenu.addEventListener("mouseleave", () => {
 
 
 document.querySelectorAll(".submenu-item").forEach(item => {
-  item.addEventListener("click", () => {
-    blacklistScanDirection = item.dataset.scanDir;
-    console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);
-  });
-});
-
-document.querySelectorAll(".submenu-item").forEach(item => {
+  const filteredData = applyFilters(globalPacketData);
   item.addEventListener("click", () => {
     document.querySelectorAll(".submenu-item").forEach(i => i.classList.remove("active"));
     item.classList.add("active");
+    
     blacklistScanDirection = item.dataset.scanDir;
+
+    // Reset scan index properly
+    if (blacklistScanDirection === "latest-forward") {
+      lastBlacklistScannedIndex = globalPacketData.length;
+    } else if (blacklistScanDirection === "latest") {
+      lastBlacklistScannedIndex = 0; // Reverse scan from end
+    } else {
+      lastBlacklistScannedIndex = 0; // Oldest starts from beginning
+    }
+
+    console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);
   });
 });
-
