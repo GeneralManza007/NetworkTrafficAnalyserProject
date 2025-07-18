@@ -800,13 +800,22 @@ runBlacklistScan.addEventListener("click", () => {
 
 function parseBlacklist(fileContent, manualInput) {
   const combined = `${fileContent}\n${manualInput}`;
-  return new Set(
-    combined
-      .split(/[\n,]/)
-      .map(ip => ip.trim())
-      .filter(ip => ip.length > 0)
-  );
+  const lines = combined.split(/\n/);
+
+  const ips = lines.flatMap(line => {
+    const columns = line.split(',').map(col => col.trim());
+    
+    const firstColumn = columns[0];
+    return isValidIP(firstColumn) ? [firstColumn] : [];
+  });
+
+  return new Set(ips);
 }
+
+function isValidIP(ip) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
+}
+
 const alertBlacklistBox = document.getElementById("blacklist-alert-box");
 const alertBlacklistSound = document.getElementById("alert-sound");
 
