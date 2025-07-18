@@ -740,8 +740,29 @@ function stopAutoBlacklistScan() {
     autoBlacklistScanIntervalId = null;
     console.log("⛔ Interval cleared!");
   }
+
   autoBlacklistScanEnabled = false;
+  blacklistAlertQueue = [];
+  isShowingAlert = false;
+
+  const alertBox = document.getElementById("blacklist-alert-box");
+  if (alertBox && !alertBox.classList.contains("hidden")) {
+    alertBox.classList.remove("hidden");
+    alertBox.classList.add("fade-out");
+    setTimeout(() => {
+      alertBox.classList.remove("fade-out");
+      alertBox.classList.add("hidden");
+    }, 600);
+  }
+
+  const resultsBox = document.getElementById("blacklist-results");
+  if (resultsBox) {
+    resultsBox.innerHTML = "";
+  }
+
+  console.log("🧹 Auto blacklist scan, alerts, and results cleared with fade-out.");
 }
+
 
 blacklistToolBtn.addEventListener("click", () => {
   blacklistModal.classList.remove("hidden");
@@ -1056,14 +1077,12 @@ document.querySelectorAll(".submenu-item").forEach(item => {
     item.classList.add("active");
     
     blacklistScanDirection = item.dataset.scanDir;
-
-    // Reset scan index properly
     if (blacklistScanDirection === "latest-forward") {
       lastBlacklistScannedIndex = globalPacketData.length;
     } else if (blacklistScanDirection === "latest") {
-      lastBlacklistScannedIndex = 0; // Reverse scan from end
+      lastBlacklistScannedIndex = 0;
     } else {
-      lastBlacklistScannedIndex = 0; // Oldest starts from beginning
+      lastBlacklistScannedIndex = 0; 
     }
 
     console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);

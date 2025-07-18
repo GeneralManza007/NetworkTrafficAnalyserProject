@@ -371,11 +371,25 @@ canvas {
   z-index: 9999;
   animation: flash 1s infinite;
   box-shadow: 0 0 10px red;
+  pointer-events: none;
 }
 
 @keyframes flash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.fade-out {
+  animation: fadeOut 0.6s ease-out forwards;
 }
 
 #auto-scan-container {
