@@ -317,7 +317,7 @@ canvas {
   justify-self: center;
 }
 
-#port-loading-overlay {
+#global-loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -358,7 +358,7 @@ canvas {
   cursor: pointer;
 }
 
-#port-alert {
+#port-alert, #blacklist-alert-box {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -371,11 +371,25 @@ canvas {
   z-index: 9999;
   animation: flash 1s infinite;
   box-shadow: 0 0 10px red;
+  pointer-events: none;
 }
 
 @keyframes flash {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.fade-out {
+  animation: fadeOut 0.6s ease-out forwards;
 }
 
 #auto-scan-container {
@@ -387,4 +401,212 @@ canvas {
   gap: 8px;
   font-weight: bold;
   color: #fff;
+}
+
+#blacklist-tool-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #222;
+  color: #fff;
+  padding: 1em;
+  border: 2px solid #666;
+  border-radius: 10px;
+  z-index: 1000;
+  width: 350px;
+  height: auto;
+}
+
+#blacklist-tool-modal .modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#blacklist-tool-modal h2 {
+  text-align: center;
+  margin-top: 0;
+}
+
+#blacklist-tool-modal label {
+  font-size: 13px;
+  color: #ccc;
+}
+
+#blacklist-file {
+  display: none;
+}
+
+.custom-file-upload {
+  display: inline-block;
+  padding: 10px 14px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+  text-align: center;
+  justify-self: center;
+  display: flex;
+}
+
+.custom-file-upload:hover {
+  background-color: #444;
+}
+
+.custom-file-upload:active {
+  background-color: #555;
+}
+
+#manual-blacklist-input {
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  padding: 6px;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: monospace;
+}
+
+#run-blacklist-scan {
+  padding: 8px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+#run-blacklist-scan:hover {
+  background-color: #444;
+}
+
+#blacklist-results {
+  margin-top: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  background: #111;
+  padding: 0.5em;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+#blacklist-results ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+#blacklist-results li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+  color: #eee;
+}
+
+#close-blacklist-modal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.file-status {
+  font-size: 0.9rem;
+  color: #ccc;
+  display: flex;
+  align-self: center;
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.file-upload-instructions {
+  margin-top: 30px;
+}
+
+.options-bar {
+  position: absolute;
+  top: 5 px;
+  left: 10px;
+}
+
+.options-icon {
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: none;
+  color: white;
+}
+
+.options-dropdown {
+  margin-top: 5px;
+  background-color: #222;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1000;
+  min-width: 100px;
+}
+
+.option-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: white;
+  border-radius: 10px;
+  border: black 1px solid;
+  margin-top: 5px;
+}
+
+.option-item:hover {
+  background-color: #333;
+}
+
+.option-item.active {
+  background-color: #2ecc71; 
+  color: black;
+}
+
+.with-submenu {
+  position: relative;
+}
+
+.submenu {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 110%;
+  background: #222;
+  border: 1px solid #444;
+  padding: 5px;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.with-submenu:hover {
+  background-color: #333;
+}
+
+.submenu-item {
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 10px;
+  border: 1px solid black;
+  margin-top: 5px;
+}
+
+.submenu-item:hover {
+  background-color: #333;
+}
+
+.submenu-item.active {
+  background-color: #005577;
+  color: white;
 }

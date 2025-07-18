@@ -1,4 +1,5 @@
 let globalPacketData = [];
+const blockedIPs = new Set();
 
 function renderPackets(data) {
   const tableBody = document.getElementById('packet-table');
@@ -22,12 +23,16 @@ function fetchPackets() {
   fetch('/api/packets')
     .then(response => response.json())
     .then(data => {
-      globalPacketData = data;
-      const filteredData = applyFilters(data);
+      globalPacketData = data.filter(pkt => 
+        !blockedIPs.has(pkt.src) && !blockedIPs.has(pkt.dst)
+      );
+
+      const filteredData = applyFilters(globalPacketData);
       renderPackets(filteredData);
     })
     .catch(error => console.error('Error fetching packets:', error));
 }
+
 
 document.getElementById('protocolFilter').addEventListener('input', fetchPackets);
 document.getElementById('srcFilter').addEventListener('input', fetchPackets);
@@ -309,7 +314,7 @@ function updateChartsAndPackets() {
       protocolChart.data.datasets[0].data = dynamicCounts;
       protocolChart.data.datasets[0].backgroundColor = dynamicColors;
       protocolChart.update();
-      
+
       Object.keys(dynamicProtocolCounts).forEach(proto => {
         if (!protocolHistory[proto]) {
           protocolHistory[proto] = [];
@@ -542,7 +547,7 @@ let portScanTimeoutId = null;
 
 const alertBox = document.getElementById("port-alert");
 console.log(alertBox);
-const alertSound = document.getElementById("port-alert-sound");
+const alertSound = document.getElementById("alert-sound");
 
 function performPortScanLogic(silent = false, source = "manual") {
   alertBox.classList.add("hidden");
@@ -611,9 +616,9 @@ function performPortScanLogic(silent = false, source = "manual") {
   }
 }
 
+const loadingOverlay = document.getElementById("global-loading-overlay");
 
 function runPortScan({ silent = false, source = "manual" }) {
-  const loadingOverlay = document.getElementById("port-loading-overlay");
 
   if (!silent) {
     loadingOverlay.classList.remove("hidden");
@@ -674,3 +679,421 @@ document.getElementById('export-btn').addEventListener('click', () => {
   exportToCSV(filteredData);
 });
 makeModalDraggable(portToolModal);
+
+const blacklistToolBtn = document.getElementById("blacklist-tool-btn");
+const blacklistModal = document.getElementById("blacklist-tool-modal");
+const closeBlacklistModal = document.getElementById("close-blacklist-modal");
+const runBlacklistScan = document.getElementById("run-blacklist-scan");
+const blacklistResults = document.getElementById("blacklist-results");
+let scanCancelled = false;
+let autoBlacklistScanEnabled = false;
+let autoBlacklistScanIntervalId = null;
+let lastBlacklistScannedIndex = null;
+let blacklistAlertQueue = [];
+let isShowingAlert = false;
+let blacklistScanDirection = "oldest";
+
+function sendBlockedIPsToBackend() {
+  const ipsToBlock = Array.from(blockedIPs);
+
+  fetch('/api/block_ips', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ips: ipsToBlock })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("✅ Sent to backend:", data.blocked);
+  })
+  .catch(error => {
+    console.error("❌ Error sending blocked IPs:", error);
+  });
+}
+
+function sendUnblockedIPsToBackend() {
+  const ipsToUnblock = Array.from(blockedIPs);
+
+  fetch('/api/unblock_ips', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ips: ipsToUnblock })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("✅ Unblocked on backend:", data.blocked);
+  })
+  .catch(error => {
+    console.error("❌ Error unblocking IPs:", error);
+  });
+}
+
+
+function startAutoBlacklistScan() {
+  autoBlacklistScanIntervalId = setInterval(() => {
+    runBlacklistAutoScan(); 
+  }, 10000); 
+}
+
+function stopAutoBlacklistScan() {
+  if (autoBlacklistScanIntervalId !== null) {
+    clearInterval(autoBlacklistScanIntervalId);
+    autoBlacklistScanIntervalId = null;
+    console.log("⛔ Interval cleared!");
+  }
+
+  autoBlacklistScanEnabled = false;
+  blacklistAlertQueue = [];
+  isShowingAlert = false;
+
+  const alertBox = document.getElementById("blacklist-alert-box");
+  if (alertBox && !alertBox.classList.contains("hidden")) {
+    alertBox.classList.remove("hidden");
+    alertBox.classList.add("fade-out");
+    setTimeout(() => {
+      alertBox.classList.remove("fade-out");
+      alertBox.classList.add("hidden");
+    }, 600);
+  }
+
+  const resultsBox = document.getElementById("blacklist-results");
+  if (resultsBox) {
+    resultsBox.innerHTML = "";
+  }
+
+  console.log("🧹 Auto blacklist scan, alerts, and results cleared with fade-out.");
+}
+
+
+blacklistToolBtn.addEventListener("click", () => {
+  blacklistModal.classList.remove("hidden");
+});
+closeBlacklistModal.addEventListener("click", () => {
+  blacklistModal.classList.add("hidden");
+});
+
+runBlacklistScan.addEventListener("click", () => {
+  scanCancelled = false; 
+  const fileInput = document.getElementById("blacklist-file");
+  const manualInput = document.getElementById("manual-blacklist-input").value;
+
+  loadingOverlay.classList.remove("hidden"); 
+
+  setTimeout(() => {
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const fileText = e.target.result;
+        const blacklist = parseBlacklist(fileText, manualInput);
+        scanAgainstBlacklist(blacklist);
+        loadingOverlay.classList.add("hidden"); 
+      };
+      reader.readAsText(file);
+    } else {
+      const blacklist = parseBlacklist("", manualInput);
+      scanAgainstBlacklist(blacklist);
+      loadingOverlay.classList.add("hidden"); 
+    }
+  }, Math.random() * 1500 + 500); 
+});
+
+function parseBlacklist(fileContent, manualInput) {
+  const combined = `${fileContent}\n${manualInput}`;
+  const lines = combined.split(/\n/);
+
+  const ips = lines.flatMap(line => {
+    const columns = line.split(',').map(col => col.trim());
+    
+    const firstColumn = columns[0];
+    return isValidIP(firstColumn) ? [firstColumn] : [];
+  });
+
+  return new Set(ips);
+}
+
+function isValidIP(ip) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
+}
+
+const alertBlacklistBox = document.getElementById("blacklist-alert-box");
+const alertBlacklistSound = document.getElementById("alert-sound");
+
+function scanAgainstBlacklist(blacklistSet) {
+  if (scanCancelled) return;
+
+  const filteredData = applyFilters(globalPacketData);
+  const hits = [];
+
+  alertBlacklistBox.innerText = "";
+  alertBlacklistBox.classList.add("hidden");
+
+  for (const packet of filteredData) {
+    if (scanCancelled) return;
+
+    if (blacklistSet.has(packet.src) || blacklistSet.has(packet.dst)) {
+      hits.push(`<li>${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})</li>`);
+    }
+  }
+
+  if (!scanCancelled) {
+    if (hits.length) {
+      alertBlacklistBox.innerText = `⚠ Blacklist Match Found`;
+      alertBlacklistBox.classList.remove("hidden");
+
+      alertBlacklistSound.pause();
+      alertBlacklistSound.currentTime = 0;
+      alertBlacklistSound.play().catch(err => console.warn("Audio play failed:", err));
+
+      setTimeout(() => {
+        alertBlacklistBox.classList.add("hidden");
+      }, 6000);
+    }
+
+    blacklistResults.innerHTML = hits.length
+      ? `<ul>${hits.join("")}</ul>`
+      : "<p>No matches found.</p>";
+  }
+}
+
+
+
+
+const cancelScanBtn = document.getElementById("cancel-port-scan");
+
+cancelScanBtn.addEventListener("click", () => {
+  scanCancelled = true;
+  loadingOverlay.classList.add("hidden");
+  blacklistResults.innerHTML = "<p>Scan cancelled by user.</p>";
+});
+
+const fileInput = document.getElementById("blacklist-file");
+const fileNameDisplay = document.getElementById("blacklist-file-name");
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    fileNameDisplay.textContent = `✔ File loaded: ${fileInput.files[0].name}`;
+    fileNameDisplay.style.color = "#00ff99";
+  } else {
+    fileNameDisplay.textContent = "No file selected";
+    fileNameDisplay.style.color = "#ccc";
+  }
+});
+makeModalDraggable(blacklistModal);
+
+function runBlacklistAutoScan() {
+  if (!autoBlacklistScanEnabled) return;
+  const fileInput = document.getElementById("blacklist-file");
+  const manualInput = document.getElementById("manual-blacklist-input").value;
+
+  if (fileInput.files.length > 0) {
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      if (!autoBlacklistScanEnabled) {
+        console.log("🛑 Scan skipped after file read — auto scan disabled.");
+        return;
+      }
+
+      const fileText = e.target.result;
+      const blacklist = parseBlacklist(fileText, manualInput);
+      scanAgainstBlacklistAuto(blacklist);
+    };
+
+    reader.readAsText(file);
+  } else {
+    if (!autoBlacklistScanEnabled) return;
+    const blacklist = parseBlacklist("", manualInput);
+    scanAgainstBlacklistAuto(blacklist);
+  }
+}
+
+function scanAgainstBlacklistAuto(blacklistSet) {
+ const filteredData = applyFilters(globalPacketData);
+  if (!autoBlacklistScanEnabled) return;
+
+  let packetsToCheck = [];
+
+  if (blacklistScanDirection === "oldest") {
+    packetsToCheck = filteredData.slice(lastBlacklistScannedIndex || 0);
+    lastBlacklistScannedIndex = filteredData.length;
+
+  } else if (blacklistScanDirection === "latest") {
+    packetsToCheck = filteredData.slice().reverse();
+    lastBlacklistScannedIndex = filteredData.length;
+
+  } else if (blacklistScanDirection === "latest-forward") {
+    if (lastBlacklistScannedIndex == null) {
+      console.log("⚠️ Skipping first scan in 'latest-forward' mode.");
+      lastBlacklistScannedIndex = filteredData.length;
+      return;
+    }
+
+    if (lastBlacklistScannedIndex >= filteredData.length) {
+      console.log("✅ No new packets to scan.");
+      return;
+    }
+    
+    packetsToCheck = filteredData.slice(lastBlacklistScannedIndex);
+    lastBlacklistScannedIndex = filteredData.length;
+  }
+
+  const matches = [];
+
+  for (const packet of packetsToCheck) {
+    if (!autoBlacklistScanEnabled) break; 
+
+    if (blacklistSet.has(packet.src) || blacklistSet.has(packet.dst)) {
+      const detail = `${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})`;
+      matches.push(`<li>${detail}</li>`);
+      blacklistAlertQueue.push(detail);
+    }
+  }
+
+  lastBlacklistScannedIndex = filteredData.length;
+  processNextBlacklistAlert(); 
+}
+
+
+function processNextBlacklistAlert() {
+  if (isShowingAlert || blacklistAlertQueue.length === 0) return;
+
+  isShowingAlert = true;
+  const detail = blacklistAlertQueue.shift();
+
+  showBlacklistAlert(detail);
+
+  setTimeout(() => {
+    isShowingAlert = false;
+    processNextBlacklistAlert(); 
+  }, 6000); 
+}
+
+
+const optionsToggle = document.getElementById("options-toggle");
+const optionsMenu = document.getElementById("blacklist-options-menu");
+const optionItems = document.querySelectorAll(".option-item");
+
+optionsToggle.addEventListener("click", () => {
+  optionsMenu.classList.toggle("hidden");
+});
+
+optionItems.forEach(item => {
+  item.addEventListener("click", () => {
+    item.classList.toggle("active");
+    const optionType = item.dataset.option;
+    switch (optionType) {
+      case "auto-scan":
+        autoBlacklistScanEnabled = item.classList.contains("active");
+        autoBlacklistScanEnabled ? startAutoBlacklistScan() : stopAutoBlacklistScan();
+        break;
+
+      case "block":
+        const isBlocking = item.classList.contains("active");
+        if (isBlocking) {
+          const fileInput = document.getElementById("blacklist-file");
+          const manualInput = document.getElementById("manual-blacklist-input").value;
+
+          if (fileInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const fileText = e.target.result;
+              const blacklist = parseBlacklist(fileText, manualInput);
+              blacklist.forEach(ip => blockedIPs.add(ip));
+                console.log("🚫 Blocking enabled for IPs:", [...blockedIPs]);
+                sendBlockedIPsToBackend();  
+                fetchPackets();
+            };
+            reader.readAsText(file);
+          } else {
+            const blacklist = parseBlacklist("", manualInput);
+            blacklist.forEach(ip => blockedIPs.add(ip));
+            console.log("🚫 Blocking enabled for IPs:", [...blockedIPs]);
+            sendBlockedIPsToBackend();  
+            fetchPackets();
+          }
+        } else {
+              sendUnblockedIPsToBackend();     
+              blockedIPs.clear();             
+              console.log("✅ Blocking disabled. IPs cleared.");
+              fetchPackets();
+            }
+        break;
+    }
+  });
+});
+
+
+function showBlacklistAlert(detail) {
+
+  alertBlacklistBox.classList.remove("hidden");
+  alertBlacklistBox.innerText = `⚠ Blacklist Match Found: ${detail}`;
+
+  alertBlacklistSound.pause();
+  alertBlacklistSound.currentTime = 0;
+  alertBlacklistSound.play().catch(err => console.warn("Audio play failed:", err));
+
+  const autoResults = document.getElementById("blacklist-results");
+  let ul = autoResults.querySelector("ul");
+
+  if (!ul) {
+    ul = document.createElement("ul");
+    autoResults.innerHTML = "";
+    autoResults.appendChild(ul);
+  }
+
+  const li = document.createElement("li");
+  li.innerText = detail;
+  ul.appendChild(li);
+
+  setTimeout(() => {
+    alertBlacklistBox.classList.add("hidden");
+  }, 6000);
+}
+
+const submenuParent = document.querySelector(".with-submenu");
+const submenu = submenuParent.querySelector(".submenu");
+
+let submenuTimeout;
+
+submenuParent.addEventListener("mouseenter", () => {
+  clearTimeout(submenuTimeout);
+  submenu.style.display = "block";
+});
+
+submenuParent.addEventListener("mouseleave", () => {
+  submenuTimeout = setTimeout(() => {
+    submenu.style.display = "none";
+  }, 200); 
+});
+
+submenu.addEventListener("mouseenter", () => {
+  clearTimeout(submenuTimeout);
+});
+
+submenu.addEventListener("mouseleave", () => {
+  submenuTimeout = setTimeout(() => {
+    submenu.style.display = "none";
+  }, 200);
+});
+
+
+document.querySelectorAll(".submenu-item").forEach(item => {
+  const filteredData = applyFilters(globalPacketData);
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".submenu-item").forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+    
+    blacklistScanDirection = item.dataset.scanDir;
+    if (blacklistScanDirection === "latest-forward") {
+      lastBlacklistScannedIndex = globalPacketData.length;
+    } else if (blacklistScanDirection === "latest") {
+      lastBlacklistScannedIndex = 0;
+    } else {
+      lastBlacklistScannedIndex = 0; 
+    }
+
+    console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);
+  });
+});
