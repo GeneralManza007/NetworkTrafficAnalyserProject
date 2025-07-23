@@ -39,6 +39,8 @@ def start_monitoring():
     monitoring = True
     return jsonify({'status': 'started'})
 
+from scapy.all import Raw  # At the top of your file
+
 def packet_callback(packet):
     global total_packets, monitoring, blocked_ips
     if not monitoring or IP not in packet:
@@ -62,6 +64,13 @@ def packet_callback(packet):
         src_port = packet["UDP"].sport
         dst_port = packet["UDP"].dport
 
+    payload = ""
+    if packet.haslayer(Raw):
+        try:
+            payload = packet[Raw].load.decode("utf-8", errors="ignore")
+        except Exception:
+            payload = str(packet[Raw].load)
+
     total_packets += 1
     captured_packets.append({
         "src": src_ip,
@@ -70,6 +79,7 @@ def packet_callback(packet):
         "src_port": src_port,
         "dst_port": dst_port,
         "time": time.strftime('%H:%M:%S'),
+        "payload": payload
     })
 
 
