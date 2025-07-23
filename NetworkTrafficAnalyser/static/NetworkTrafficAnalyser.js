@@ -7,17 +7,29 @@ function renderPackets(data) {
 
   data.slice().reverse().forEach(packet => {
     const row = document.createElement('tr');
+    const fullPayload = packet.payload ? sanitize(packet.payload) : '';
+    const shortPayload = fullPayload.length > 30 ? fullPayload.slice(0, 30) + '...' : fullPayload;
+
     row.innerHTML = `
       <td>${packet.time}</td>
       <td>${packet.src}</td>
-      <td>${packet.src_port || '-'}</td>
+      <td>${packet.src_port || 'Unknown Src Port'}</td>
       <td>${packet.dst}</td>
-      <td>${packet.dst_port || '-'}</td>
+      <td>${packet.dst_port || 'Unkown Dest Port'}</td>
       <td>${packet.proto}</td>
+      <td title="${fullPayload}">${shortPayload || 'n/a'}</td>
     `;
     tableBody.appendChild(row);
   });
 }
+
+function sanitize(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 
 function fetchPackets() {
   fetch('/api/packets')
@@ -39,6 +51,7 @@ document.getElementById('srcFilter').addEventListener('input', fetchPackets);
 document.getElementById('dstFilter').addEventListener('input', fetchPackets);
 document.getElementById('srcPortFilter').addEventListener('input', fetchPackets);
 document.getElementById('dstPortFilter').addEventListener('input', fetchPackets);
+document.getElementById('payloadFilter').addEventListener('input', fetchPackets);
 
 ['exactTime', 'startTime', 'endTime'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
@@ -251,6 +264,7 @@ function applyFilters(data) {
   const exactTime = document.getElementById('exactTime').value;
   const startTime = document.getElementById('startTime').value;
   const endTime = document.getElementById('endTime').value;
+  const payloadContent = document.getElementById('payloadFilter').value.toLowerCase();
 
   const startTimeWithSeconds = startTime ? startTime + ':00' : null;
   const endTimeWithSeconds = endTime ? endTime + ':00' : null;
@@ -265,21 +279,16 @@ function applyFilters(data) {
     const matchesDst = !dst || packet.dst.includes(dst);
     const matchesSrcPort = !srcPort || packet.src_port === Number(srcPort);
     const matchesDstPort = !dstPort || packet.dst_port === Number(dstPort);
+    const matchesPayload = !payloadContent || 
+    (packet.payload && packet.payload.toLowerCase().includes(payloadContent));
 
-
-    console.log({
-  packetSrcPort: packet.src_port,
-  packetDstPort: packet.dst_port,
-  filterSrcPort: srcPort,
-  filterDstPort: dstPort
-});
 
     if (exactTime) {
       return packetTime === exactTime;
     }
 
-    return matchesStartTime && matchesEndTime && matchesProtocol &&
-           matchesSrc && matchesDst && matchesSrcPort && matchesDstPort;
+return matchesStartTime && matchesEndTime && matchesProtocol &&
+       matchesSrc && matchesDst && matchesSrcPort && matchesDstPort && matchesPayload;
   });
 }
 
@@ -546,7 +555,6 @@ closePortModal.addEventListener("click", () => {
 let portScanTimeoutId = null; 
 
 const alertBox = document.getElementById("port-alert");
-console.log(alertBox);
 const alertSound = document.getElementById("alert-sound");
 
 function performPortScanLogic(silent = false, source = "manual") {
@@ -804,7 +812,7 @@ function parseBlacklist(fileContent, manualInput) {
 
   const ips = lines.flatMap(line => {
     const columns = line.split(',').map(col => col.trim());
-    
+
     const firstColumn = columns[0];
     return isValidIP(firstColumn) ? [firstColumn] : [];
   });
@@ -1097,3 +1105,108 @@ document.querySelectorAll(".submenu-item").forEach(item => {
     console.log(`📍 Scan direction set to: ${blacklistScanDirection}`);
   });
 });
+
+const signatureToolBtn = document.getElementById("signature-tool-btn");
+const signatureModal = document.getElementById("signature-modal");
+const closeSignatureModal = document.getElementById("close-signature-modal");
+const addSignatureBtn = document.getElementById("add-signature-btn");
+const signatureInput = document.getElementById("signature-input");
+const signatureList = document.getElementById("signature-list");
+const startSignatureScan = document.getElementById("start-signature-scan");
+const clearSignatureScan = document.getElementById("clear-signature-scan");
+const signatureAlertBox = document.getElementById("signature-alert-box");
+const signatureAlertSound = document.getElementById("alert-sound");
+const signatureResults = document.getElementById("signature-results");
+const globalLoadingOverlay = document.getElementById("global-loading-overlay");
+
+
+let signaturePatterns = [];
+let signatureScanRunning = false;
+
+signatureToolBtn.addEventListener("click", () => {
+  signatureModal.classList.remove("hidden");
+});
+
+closeSignatureModal.addEventListener("click", () => {
+  signatureModal.classList.add("hidden");
+});
+
+addSignatureBtn.addEventListener("click", () => {
+  const pattern = signatureInput.value.trim();
+  if (pattern) {
+    signaturePatterns.push(new RegExp(pattern, "i"));
+    const li = document.createElement("li");
+    li.textContent = pattern;
+    signatureList.appendChild(li);
+    signatureInput.value = "";
+  }
+});
+
+startSignatureScan.addEventListener("click", () => {
+  signatureScanRunning = true;
+  globalLoadingOverlay.classList.remove("hidden");
+  signatureResults.innerHTML = ""; 
+
+  const scanDelay = Math.floor(Math.random() * 15000) + 5000;
+
+  console.log(`⏳ Simulating scan delay of ${scanDelay}ms`);
+
+  setTimeout(() => {
+    if (signatureScanRunning) {
+      scanForSignatures();
+    }
+  }, scanDelay);
+});
+
+function scanForSignatures() {
+  const filteredData = applyFilters(globalPacketData);
+  const sortedData = filteredData.slice().sort((a, b) => new Date(b.time) - new Date(a.time));
+
+  const hits = [];
+
+  for (const packet of sortedData) {
+    if (!signatureScanRunning) return;
+
+    const payload = packet.payload || packet.raw || packet.content || "";
+
+    for (const pattern of signaturePatterns) {
+      if (pattern.test(payload)) {
+        const detail = `${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto})`;
+        hits.push(`<li>${detail} – Matched: <code>${pattern}</code></li>`);
+
+        signatureAlertBox.classList.remove("hidden");
+        signatureAlertSound.pause();
+        signatureAlertSound.currentTime = 0;
+        signatureAlertSound.play().catch(err => console.warn("Sound play failed:", err));
+
+        setTimeout(() => {
+          signatureAlertBox.classList.add("hidden");
+        }, 6000);
+
+        break;
+      }
+    }
+  }
+
+  globalLoadingOverlay.classList.add("hidden");
+
+  signatureResults.innerHTML = hits.length
+    ? `<ul>${hits.join("")}</ul>`
+    : "<p>No matches found.</p>";
+}
+
+
+cancelScanBtn.addEventListener("click", () => {
+  scanCancelled = true;
+  loadingOverlay.classList.add("hidden");
+  signatureResults.innerHTML = "<p>Scan cancelled by user.</p>";
+});
+
+clearSignatureScan.addEventListener("click", () => {
+  signaturePatterns = [];
+  signatureList.innerHTML = "";
+  signatureInput.value = "";
+  signatureResults.innerHTML = "";
+});
+
+makeModalDraggable(signatureModal);
