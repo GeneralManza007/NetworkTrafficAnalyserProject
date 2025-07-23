@@ -358,7 +358,7 @@ canvas {
   cursor: pointer;
 }
 
-#port-alert, #blacklist-alert-box {
+#port-alert, #blacklist-alert-box,#signature-alert-box {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -609,4 +609,87 @@ canvas {
 .submenu-item.active {
   background-color: #005577;
   color: white;
+}
+
+#signature-list {
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  background: #111;
+  padding: 10px;
+  border: 1px solid #333;
+}
+
+.modal {
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222;
+  padding: 20px;
+  border: 2px solid #444;
+  border-radius: 10px;
+  z-index: 1000;
+  box-shadow: 0 0 15px rgba(255,255,255,0.2);
+  
+}
+
+.scan-section{
+  display: flex;
+  justify-self: center;
+}
+
+.modal-content h2 {
+  color: white;
+}
+
+.hidden {
+  display: none;
+}
+
+#signature-list {
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+  background: #111;
+  padding: 10px;
+  border: 1px solid #333;
+}
+
+#start-signature-scan, #stop-signature-scan, #add-signature-btn, #clear-signature-scan {
+  padding: 8px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#start-signature-scan, #stop-signature-scan:hover, #add-signature-btn:hover, #clear-signature-scan:hover {
+  background-color: #444;
+}
+
+ #add-signature-btn{
+  margin-top: 10px;
+
+ }
+
+.scan-buttons{
+  display: flex;
+  justify-content: center;
+  gap:10px
+}
+
+.signature-input {
+  border-radius: 5px;
+  
+}
+
+#signature-input {
+  padding: 8px;
+  background: #111;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 6px;
 }
