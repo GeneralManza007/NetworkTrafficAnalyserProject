@@ -24,6 +24,10 @@
       <img src="{{ url_for('static', filename='icons/blacklist-icon.png') }}" alt="Blacklist Tool" />
       Blacklist Tool
   </button>
+  <button class="tool-btn" id="signature-tool-btn">
+  <img src="{{ url_for('static', filename='icons/signature-icon.png') }}" alt="Signature Tool" />
+    Signature Tool
+  </button>
   </div>
   <div id="time-tool-modal" class="hidden">
     <button id="close-time-modal" class="close-btn">✖</button>
@@ -94,6 +98,28 @@
     <div id="blacklist-results" class="results"></div>
   </div>
 </div>
+
+  <div id="signature-modal" class="modal hidden">
+  <div class="modal-content">
+    <button id="close-signature-modal" class="close-btn">✖</button>
+    <p id="info">Define patterns to scan inside packet content. Supports simple strings or regex.</p>
+    
+    <div class="scan-section">
+    <label class="signature-input" for="signature-input">Signature Pattern:</label>
+    <input type="text" id="signature-input" placeholder="e.g., login, /password\s*=\s*\w+/i" />
+    
+    <button id="add-signature-btn">Add Signature</button>
+    </div>
+    <ul id="signature-list"></ul>
+    <div id="signature-results"></div>
+
+    <div class="scan-buttons">
+    <button id="start-signature-scan">Start Scan</button>
+    <button id="clear-signature-scan">Clear</button>
+    </div>
+  </div>
+</div>
+
   <div id="control-buttons">
   <button id="play-btn">▶</button>
   <button id="pause-btn">⏸</button>
@@ -118,6 +144,9 @@
 
 <label for="dstPortFilter">Destination Port:</label>
 <input type="text" id="dstPortFilter" placeholder="Destination Port">
+
+<label for="payloadFilter">Payload Content:</label>
+<input type="text" id="payloadFilter" placeholder="Payload content..." />
 </div>
 
 <div class="charts-container">
@@ -131,18 +160,19 @@
   <button id="export-charts-btn">Export All Charts as PNG</button>
 </div>
   <table>
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Source IP</th>
-        <th>Src Port</th>
-        <th>Destination IP</th>
-        <th>Dst Port</th>
-        <th>Protocol</th>
-      </tr>
-    </thead>
-    <tbody id="packet-table"></tbody>
-  </table>
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>Source IP</th>
+      <th>Src Port</th>
+      <th>Destination IP</th>
+      <th>Dst Port</th>
+      <th>Protocol</th>
+      <th>Payload</th>
+    </tr>
+  </thead>
+  <tbody id="packet-table"></tbody>
+</table>
 
   <div id="global-loading-overlay" class="hidden">
   <button id="cancel-port-scan" class="close-btn">×</button>
@@ -154,6 +184,8 @@
   <div id="auto-scan-results" style="max-height: 150px;"></div>
 </div>
 <div id="blacklist-alert-box" class="hidden">⚠ Blacklist Match Found!</div>
+<div id="signature-alert-box" class="hidden">⚠ Signature Match Found</div>
+
   <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
 </body>
 </html>
