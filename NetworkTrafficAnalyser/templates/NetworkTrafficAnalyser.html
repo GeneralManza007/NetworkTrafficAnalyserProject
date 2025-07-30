@@ -101,9 +101,15 @@
 
   <div id="signature-modal" class="modal hidden">
   <div class="modal-content">
+  <div class="options-bar" id="signature-options-bar">
+  <div class="options-icon" id="signature-options-toggle">⚙</div>
+  <div class="options-dropdown hidden" id="signature-options-menu">
+    <div class="option-item" id="signature-auto-scan" data-option="auto-scan">Auto Scan</div>
+    <div class="option-item" id="signature-block-toggle" data-option="block">Block Matched IPs</div>
+  </div>
+    </div>
     <button id="close-signature-modal" class="close-btn">✖</button>
     <p id="info">Define patterns to scan inside packet content. Supports simple strings or regex.</p>
-    
     <div class="scan-section">
     <label class="signature-input" for="signature-input">Signature Pattern:</label>
     <input type="text" id="signature-input" placeholder="e.g., login, /password\s*=\s*\w+/i" />
