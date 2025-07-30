@@ -1210,3 +1210,44 @@ clearSignatureScan.addEventListener("click", () => {
 });
 
 makeModalDraggable(signatureModal);
+
+const signatureOptionsToggle = document.getElementById("signature-options-toggle");
+const signatureOptionsMenu = document.getElementById("signature-options-menu");
+const signatureOptionItems = signatureOptionsMenu.querySelectorAll(".option-item");
+
+let autoSignatureScanEnabled = false;
+let signatureBlockingEnabled = false;
+
+signatureOptionsToggle.addEventListener("click", () => {
+  signatureOptionsMenu.classList.toggle("hidden");
+});
+
+signatureOptionItems.forEach(item => {
+  item.addEventListener("click", () => {
+    item.classList.toggle("active");
+    const optionType = item.dataset.option;
+
+    switch (optionType) {
+      case "auto-scan":
+        autoSignatureScanEnabled = item.classList.contains("active");
+        if (autoSignatureScanEnabled) {
+          console.log("⚡ Auto Signature Scan enabled");
+          startSignatureScan.click(); 
+        } else {
+          console.log("⛔ Auto Signature Scan disabled");
+          signatureScanRunning = false;
+        }
+        break;
+
+      case "block":
+        signatureBlockingEnabled = item.classList.contains("active");
+        if (signatureBlockingEnabled) {
+          console.log("🚫 Blocking enabled for matched IPs in Signature Tool");
+        } else {
+          console.log("✅ Signature blocking disabled.");
+        }
+        break;
+    }
+  });
+});
+
