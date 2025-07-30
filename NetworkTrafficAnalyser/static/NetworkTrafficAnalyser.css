@@ -506,7 +506,7 @@ canvas {
   color: #eee;
 }
 
-#close-blacklist-modal {
+#close-blacklist-modal,  #close-signature-modal {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -535,6 +535,12 @@ canvas {
   top: 5 px;
   left: 10px;
 }
+
+#signature-options-bar {
+  top: 10px;
+  transform: scale(1.05);
+}
+
 
 .options-icon {
   cursor: pointer;
