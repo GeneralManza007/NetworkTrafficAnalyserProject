@@ -1118,6 +1118,11 @@ const signatureAlertBox = document.getElementById("signature-alert-box");
 const signatureAlertSound = document.getElementById("alert-sound");
 const signatureResults = document.getElementById("signature-results");
 const globalLoadingOverlay = document.getElementById("global-loading-overlay");
+let signatureAutoScanInterval = null;
+let lastSignatureScannedIndex = null;
+let signatureScanDirection = "oldest"; 
+const signatureAlertQueue = [];
+let isShowingSignatureAlert = false;
 
 
 let signaturePatterns = [];
@@ -1195,6 +1200,137 @@ function scanForSignatures() {
     : "<p>No matches found.</p>";
 }
 
+function startAutoSignatureScanLoop() {
+  if (signatureAutoScanInterval) clearInterval(signatureAutoScanInterval);
+
+  signatureAutoScanInterval = setInterval(() => {
+    if (!autoSignatureScanEnabled) return;
+
+    console.log("🔁 Auto-scanning signatures...");
+    runSignatureAutoScan();
+  }, 20000);
+}
+
+function stopAutoSignatureScanLoop() {
+  if (signatureAutoScanInterval) {
+    clearInterval(signatureAutoScanInterval);
+    signatureAutoScanInterval = null;
+    console.log("🛑 Auto Signature Scan loop stopped");
+  }
+}
+
+function stopAutoSignatureScan() {
+  autoSignatureScanEnabled = false;
+
+  stopAutoSignatureScanLoop();
+
+  signatureAlertQueue.length = 0;
+  isShowingSignatureAlert = false;
+
+  if (signatureAlertBox) {
+    signatureAlertBox.classList.add("hidden");
+    signatureAlertBox.innerHTML = "";
+  }
+
+  console.log("🧼 Auto Signature Scan and alerts cleared.");
+}
+
+
+function runSignatureAutoScan() {
+  if (!autoSignatureScanEnabled || signaturePatterns.length === 0) return;
+
+  const filteredData = applyFilters(globalPacketData);
+
+  let packetsToCheck = [];
+
+  if (signatureScanDirection === "oldest") {
+    packetsToCheck = filteredData.slice(lastSignatureScannedIndex || 0);
+    lastSignatureScannedIndex = filteredData.length;
+
+  } else if (signatureScanDirection === "latest") {
+    packetsToCheck = filteredData.slice().reverse();
+    lastSignatureScannedIndex = filteredData.length;
+
+  } else if (signatureScanDirection === "latest-forward") {
+    if (lastSignatureScannedIndex == null) {
+      console.log("⚠️ Skipping first signature scan in 'latest-forward' mode.");
+      lastSignatureScannedIndex = filteredData.length;
+      return;
+    }
+
+    if (lastSignatureScannedIndex >= filteredData.length) {
+      console.log("✅ No new packets to scan for signature.");
+      return;
+    }
+
+    packetsToCheck = filteredData.slice(lastSignatureScannedIndex);
+    lastSignatureScannedIndex = filteredData.length;
+  }
+
+  scanAgainstSignatureAuto(packetsToCheck);
+}
+
+function scanAgainstSignatureAuto(packetsToCheck) {
+  if (!autoSignatureScanEnabled || !packetsToCheck?.length) return;
+
+  for (const packet of packetsToCheck) {
+    if (!autoSignatureScanEnabled) break;
+
+    const payload = packet.payload || packet.raw || packet.content || "";
+
+    for (const pattern of signaturePatterns) {
+      if (pattern.test(payload)) {
+        const detail = `${packet.time} – ${packet.src} → ${packet.dst} (${packet.proto}) Matched: ${pattern}`;
+        signatureAlertQueue.push(detail);
+        break;
+      }
+    }
+  }
+
+  processNextSignatureAlert();
+}
+
+
+function processNextSignatureAlert() {
+  if (isShowingSignatureAlert || signatureAlertQueue.length === 0) return;
+
+  isShowingSignatureAlert = true;
+  const detail = signatureAlertQueue.shift();
+
+  showSignatureAlert(detail);
+
+  setTimeout(() => {
+    isShowingSignatureAlert = false;
+    processNextSignatureAlert();
+  }, 6000);
+}
+
+function showSignatureAlert(detail) {
+  signatureAlertBox.innerHTML = `<p>${detail}</p>`;
+  signatureAlertBox.classList.remove("hidden");
+
+  signatureAlertSound.pause();
+  signatureAlertSound.currentTime = 0;
+  signatureAlertSound.play().catch(err => console.warn("Sound play failed:", err));
+
+  const autoResults = document.getElementById("signature-results");
+  let ul = autoResults.querySelector("ul");
+
+  if (!ul) {
+    ul = document.createElement("ul");
+    autoResults.innerHTML = "";
+    autoResults.appendChild(ul);
+  }
+
+  const li = document.createElement("li");
+  li.innerText = detail;
+  ul.appendChild(li);
+
+  setTimeout(() => {
+    signatureAlertBox.classList.add("hidden");
+  }, 5000);
+}
+
 
 cancelScanBtn.addEventListener("click", () => {
   scanCancelled = true;
@@ -1213,8 +1349,7 @@ makeModalDraggable(signatureModal);
 
 const signatureOptionsToggle = document.getElementById("signature-options-toggle");
 const signatureOptionsMenu = document.getElementById("signature-options-menu");
-const signatureOptionItems = signatureOptionsMenu.querySelectorAll(".option-item");
-
+const signatureOptionItems = document.querySelectorAll(".signature-option-item");
 let autoSignatureScanEnabled = false;
 let signatureBlockingEnabled = false;
 
@@ -1224,30 +1359,73 @@ signatureOptionsToggle.addEventListener("click", () => {
 
 signatureOptionItems.forEach(item => {
   item.addEventListener("click", () => {
-    item.classList.toggle("active");
     const optionType = item.dataset.option;
 
-    switch (optionType) {
-      case "auto-scan":
-        autoSignatureScanEnabled = item.classList.contains("active");
-        if (autoSignatureScanEnabled) {
-          console.log("⚡ Auto Signature Scan enabled");
-          startSignatureScan.click(); 
-        } else {
-          console.log("⛔ Auto Signature Scan disabled");
-          signatureScanRunning = false;
-        }
-        break;
+    item.classList.toggle("active");
+    const isActive = item.classList.contains("active");
 
-      case "block":
-        signatureBlockingEnabled = item.classList.contains("active");
-        if (signatureBlockingEnabled) {
-          console.log("🚫 Blocking enabled for matched IPs in Signature Tool");
-        } else {
-          console.log("✅ Signature blocking disabled.");
-        }
-        break;
+    if (optionType === "auto-scan") {
+      autoSignatureScanEnabled = isActive;
+
+      if (isActive) {
+        console.log("⚡ Auto Signature Scan enabled");
+        item.style.backgroundColor = "green";
+        startAutoSignatureScanLoop();
+      } else {
+        console.log("⛔ Auto Signature Scan disabled");
+        item.style.backgroundColor = "";
+        stopAutoSignatureScan();
+      }
+    }
+
+    if (optionType === "block") {
+      signatureBlockingEnabled = isActive;
+
+      if (isActive) {
+        console.log("🚫 Blocking enabled for matched IPs in Signature Tool");
+      } else {
+        console.log("✅ Signature blocking disabled.");
+      }
     }
   });
 });
 
+const signatureSubmenuItems = document.querySelectorAll(".signature-submenu-item");
+
+signatureSubmenuItems.forEach(item => {
+  item.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    signatureSubmenuItems.forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+
+    signatureScanDirection = item.dataset.scanDir;
+    console.log("🔄 Signature Scan Direction set to:", signatureScanDirection);
+  });
+});
+
+const signatureSubmenuParent = document.querySelector("#signature-options-menu .with-submenu");
+const signatureSubmenu = signatureSubmenuParent.querySelector(".signature-submenu");
+
+let signatureSubmenuTimeout;
+
+signatureSubmenuParent.addEventListener("mouseenter", () => {
+  clearTimeout(signatureSubmenuTimeout);
+  signatureSubmenu.style.display = "block";
+});
+
+signatureSubmenuParent.addEventListener("mouseleave", () => {
+  signatureSubmenuTimeout = setTimeout(() => {
+    signatureSubmenu.style.display = "none";
+  }, 200);
+});
+
+signatureSubmenu.addEventListener("mouseenter", () => {
+  clearTimeout(signatureSubmenuTimeout);
+});
+
+signatureSubmenu.addEventListener("mouseleave", () => {
+  signatureSubmenuTimeout = setTimeout(() => {
+    signatureSubmenu.style.display = "none";
+  }, 200);
+});
