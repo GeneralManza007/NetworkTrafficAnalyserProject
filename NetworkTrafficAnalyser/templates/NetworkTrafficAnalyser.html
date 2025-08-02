@@ -104,8 +104,15 @@
   <div class="options-bar" id="signature-options-bar">
   <div class="options-icon" id="signature-options-toggle">⚙</div>
   <div class="options-dropdown hidden" id="signature-options-menu">
-    <div class="option-item" id="signature-auto-scan" data-option="auto-scan">Auto Scan</div>
-    <div class="option-item" id="signature-block-toggle" data-option="block">Block Matched IPs</div>
+    <div class="signature-option-item with-submenu" data-option="auto-scan">
+    Auto Scan
+    <div class="submenu signature-submenu" id="signature-scan-direction-submenu">
+      <div class="submenu-item signature-submenu-item" data-scan-dir="oldest">Scan from Oldest</div>
+      <div class="submenu-item signature-submenu-item" data-scan-dir="latest">Scan from Latest</div>
+      <div class="submenu-item signature-submenu-item" data-scan-dir="latest-forward">Scan Latest Forward</div>
+    </div>
+  </div>
+    <div class="signature-option-item" id="signature-block-toggle" data-option="block">Block</div>
   </div>
     </div>
     <button id="close-signature-modal" class="close-btn">✖</button>
