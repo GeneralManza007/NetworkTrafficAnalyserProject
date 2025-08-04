@@ -3,7 +3,9 @@ from scapy.all import sniff, IP, TCP
 import os
 from threading import Thread
 from flask import request
+import re
 import time
+from scapy.all import Raw
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 blocked_ips = set()
@@ -26,6 +28,13 @@ proto_map = {0: "HOPOPT", 1: "ICMP", 2: "IGMP", 3: "GGP", 4: "IPv4", 5: "ST", 6:
 
 
 total_packets = 0
+blocked_signatures = []
+
+def matches_blocked_signature(payload):
+    for pattern in blocked_signatures:
+        if re.search(pattern, payload):
+            return True
+    return False
 
 @app.route('/api/pause_monitoring', methods=['POST'])
 def pause_monitoring():
@@ -38,8 +47,6 @@ def start_monitoring():
     global monitoring
     monitoring = True
     return jsonify({'status': 'started'})
-
-from scapy.all import Raw  # At the top of your file
 
 def packet_callback(packet):
     global total_packets, monitoring, blocked_ips
@@ -56,7 +63,6 @@ def packet_callback(packet):
     proto_name = proto_map.get(proto_num, f"Unknown ({proto_num})")
 
     src_port = dst_port = None
-
     if packet.haslayer(TCP):
         src_port = packet[TCP].sport
         dst_port = packet[TCP].dport
@@ -71,6 +77,9 @@ def packet_callback(packet):
         except Exception:
             payload = str(packet[Raw].load)
 
+    if matches_blocked_signature(payload):
+        return
+
     total_packets += 1
     captured_packets.append({
         "src": src_ip,
@@ -82,6 +91,18 @@ def packet_callback(packet):
         "payload": payload
     })
 
+@app.route("/api/block_signatures", methods=["POST"])
+def block_signatures():
+    global blocked_signatures
+    data = request.get_json()
+    blocked_signatures = data.get("patterns", [])
+    return jsonify({"status": "ok", "blocked_signatures": blocked_signatures})
+
+@app.route("/api/unblock_signatures", methods=["POST"])
+def unblock_signatures():
+    global blocked_signatures
+    blocked_signatures.clear()
+    return jsonify({"status": "ok", "cleared": True})
 
 @app.route("/api/block_ips", methods=["POST"])
 def block_ips():
