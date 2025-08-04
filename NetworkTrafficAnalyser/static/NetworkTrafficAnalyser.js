@@ -1,9 +1,12 @@
 let globalPacketData = [];
 const blockedIPs = new Set();
+const blockedSignatures = new Set();
 
 function renderPackets(data) {
   const tableBody = document.getElementById('packet-table');
+  const packetCount = document.getElementById('packet-count');
   tableBody.innerHTML = '';
+  packetCount.textContent = data.length;
 
   data.slice().reverse().forEach(packet => {
     const row = document.createElement('tr');
@@ -38,7 +41,6 @@ function fetchPackets() {
       globalPacketData = data.filter(pkt => 
         !blockedIPs.has(pkt.src) && !blockedIPs.has(pkt.dst)
       );
-
       const filteredData = applyFilters(globalPacketData);
       renderPackets(filteredData);
     })
@@ -281,7 +283,6 @@ function applyFilters(data) {
     const matchesDstPort = !dstPort || packet.dst_port === Number(dstPort);
     const matchesPayload = !payloadContent || 
     (packet.payload && packet.payload.toLowerCase().includes(payloadContent));
-
 
     if (exactTime) {
       return packetTime === exactTime;
@@ -1128,6 +1129,39 @@ let isShowingSignatureAlert = false;
 let signaturePatterns = [];
 let signatureScanRunning = false;
 
+function blockSignature(pattern) {
+  blockedSignatures.add(pattern.source); 
+}
+
+function unblockAllSignatures() {
+  blockedSignatures.clear();
+}
+
+function sendBlockedSignaturesToBackend() {
+  const patternStrings = Array.from(signaturePatterns).map(p => p.source);
+  fetch('/api/block_signatures', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patterns: patternStrings })
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log("✅ Backend blocking these signatures:", data.blocked_signatures);
+  });
+}
+
+function sendUnblockedSignaturesToBackend() {
+  fetch('/api/unblock_signatures', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  })
+  .then(res => res.json())
+  .then(data => {
+    console.log("✅ Signature blocking disabled:", data);
+  });
+}
+
 signatureToolBtn.addEventListener("click", () => {
   signatureModal.classList.remove("hidden");
 });
@@ -1227,10 +1261,16 @@ function stopAutoSignatureScan() {
   signatureAlertQueue.length = 0;
   isShowingSignatureAlert = false;
 
-  if (signatureAlertBox) {
+if (signatureAlertBox && !signatureAlertBox.classList.contains("hidden")) {
+  signatureAlertBox.classList.remove("hidden");
+  signatureAlertBox.classList.add("fade-out");
+
+  setTimeout(() => {
+    signatureAlertBox.classList.remove("fade-out");
     signatureAlertBox.classList.add("hidden");
     signatureAlertBox.innerHTML = "";
-  }
+  }, 600);
+}
 
   console.log("🧼 Auto Signature Scan and alerts cleared.");
 }
@@ -1379,14 +1419,23 @@ signatureOptionItems.forEach(item => {
     }
 
     if (optionType === "block") {
-      signatureBlockingEnabled = isActive;
+        signatureBlockingEnabled = isActive;
 
-      if (isActive) {
-        console.log("🚫 Blocking enabled for matched IPs in Signature Tool");
-      } else {
-        console.log("✅ Signature blocking disabled.");
+          if (isActive) {
+          const patternStrings = signaturePatterns.map(p => p.source);
+          sendBlockedSignaturesToBackend();
+
+          globalPacketData = globalPacketData.filter(packet => {
+            const payload = packet.payload || packet.raw || packet.content || "";
+            return !signaturePatterns.some(p => p.test(payload));
+          });
+
+          renderPackets(applyFilters(globalPacketData));
+        } else {
+          sendUnblockedSignaturesToBackend();
+          fetchPackets(); 
+        }
       }
-    }
   });
 });
 
