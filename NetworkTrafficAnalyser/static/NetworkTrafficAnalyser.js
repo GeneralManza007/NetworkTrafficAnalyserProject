@@ -1478,3 +1478,63 @@ signatureSubmenu.addEventListener("mouseleave", () => {
     signatureSubmenu.style.display = "none";
   }, 200);
 });
+
+const manipulateBtn = document.getElementById("manipulate-tool-btn");
+const manipulateModal = document.getElementById("manipulate-tool-modal");
+const closeManipulateBtn = document.getElementById("close-manipulate-modal");
+const packetIndexSelect = document.getElementById("packetIndex");
+const applyEditsBtn = document.getElementById("apply-packet-edits");
+
+manipulateBtn.addEventListener("click", () => {
+  populatePacketOptions();
+  manipulateModal.classList.remove("hidden");
+});
+
+closeManipulateBtn.addEventListener("click", () => {
+  manipulateModal.classList.add("hidden");
+});
+
+function populatePacketOptions() {
+  packetIndexSelect.innerHTML = '';
+  globalPacketData.forEach((packet, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = `${i + 1} | ${packet.src} -> ${packet.dst}`;
+    packetIndexSelect.appendChild(opt);
+  });
+  loadPacketIntoForm(0);
+}
+
+packetIndexSelect.addEventListener("change", () => {
+  loadPacketIntoForm(packetIndexSelect.value);
+});
+
+function loadPacketIntoForm(index) {
+  const pkt = globalPacketData[index];
+  if (!pkt) return;
+  document.getElementById("editSrc").value = pkt.src || '';
+  document.getElementById("editDst").value = pkt.dst || '';
+  document.getElementById("editProto").value = pkt.proto || '';
+  document.getElementById("editSrcPort").value = pkt.src_port || '';
+  document.getElementById("editDstPort").value = pkt.dst_port || '';
+  document.getElementById("editPayload").value = pkt.payload || '';
+}
+
+applyEditsBtn.addEventListener("click", () => {
+  const i = Number(packetIndexSelect.value);
+  const pkt = globalPacketData[i];
+  if (!pkt) return;
+
+  pkt.src = document.getElementById("editSrc").value;
+  pkt.dst = document.getElementById("editDst").value;
+  pkt.proto = document.getElementById("editProto").value;
+  pkt.src_port = Number(document.getElementById("editSrcPort").value);
+  pkt.dst_port = Number(document.getElementById("editDstPort").value);
+  pkt.payload = document.getElementById("editPayload").value;
+
+  renderPackets(applyFilters(globalPacketData)); // Refresh table
+  alert("Packet updated successfully.");
+  manipulateModal.classList.add("hidden");
+});
+
+makeModalDraggable(manipulateModal);
