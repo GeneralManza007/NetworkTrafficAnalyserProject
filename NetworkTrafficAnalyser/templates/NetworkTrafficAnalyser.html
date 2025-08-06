@@ -28,6 +28,10 @@
   <img src="{{ url_for('static', filename='icons/signature-icon.png') }}" alt="Signature Tool" />
     Signature Tool
   </button>
+  <button class="tool-btn" id="manipulate-tool-btn">
+  <img src="{{ url_for('static', filename='icons/edit-packet-icon.png') }}" alt="Manipulate Tool" />
+  Manipulate Tool
+</button>
   </div>
   <div id="time-tool-modal" class="hidden">
     <button id="close-time-modal" class="close-btn">✖</button>
@@ -132,6 +136,52 @@
     </div>
   </div>
 </div>
+
+<div id="manipulate-tool-modal" class="hidden modal">
+  <button id="close-manipulate-modal" class="close-btn">✖</button>
+
+    <div class="packet-selector">
+      <label for="packetIndex">Select Packet:</label>
+      <select id="packetIndex"></select>
+    </div>
+
+    <div class="field-block">
+      <label for="editSrc">Source IP:</label>
+      <input type="text" id="editSrc" />
+    </div>
+    
+    <div class="field-block">
+      <label for="editDst">Destination IP:</label>
+      <input type="text" id="editDst" />
+    </div>
+    
+    <div class="field-block">
+      <label for="editProto">Protocol:</label>
+      <input type="text" id="editProto" />
+    </div>
+    
+    <div class="field-block">
+      <label for="editSrcPort">Source Port:</label>
+      <input type="number" id="editSrcPort" />
+    </div>
+    
+    <div class="field-block">
+      <label for="editDstPort">Destination Port:</label>
+      <input type="number" id="editDstPort" />
+    </div>
+    
+    <div class="field-block">
+      <label for="editPayload">Payload:</label>
+      <textarea id="editPayload"></textarea>
+    </div>
+
+    <div class="modal-footer">
+    <button id="apply-packet-edits" class="apply-btn">Apply Changes</button>
+  </div>
+</div>
+</div>
+
+
 
   <div id="control-buttons">
   <button id="play-btn">▶</button>
