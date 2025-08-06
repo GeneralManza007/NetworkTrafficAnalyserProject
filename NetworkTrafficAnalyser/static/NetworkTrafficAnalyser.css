@@ -725,3 +725,116 @@ canvas {
   border: 1px solid #555;
   border-radius: 6px;
 }
+
+#manipulate-tool-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #333;
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  z-index: 1200;
+  width: 500px;
+  max-width: 95%;
+  max-height: 90vh; 
+  overflow-y: auto;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+@media (max-height: 700px), (max-width: 600px) {
+  #manipulate-tool-modal {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-height: calc(100vh - 40px);
+  }
+}
+
+
+#manipulate-tool-modal input,
+#manipulate-tool-modal textarea {
+  width: 95%;
+  margin-bottom: 10px;
+  padding: 6px;
+  background: #555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+#manipulate-tool-modal select {
+  width: 97%;
+  margin-bottom: 10px;
+  padding: 6px;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px;
+  background: #555;
+  border: 1px solid #666;
+}
+
+.packet-selector {
+  margin-top: 10px;
+  padding: 8px;
+  color: #fff;
+  background-color: #222;
+  border: 1px solid #666;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: background-color 0.2s ease;
+}
+.packet-selector:hover {
+  background-color: #444;
+}
+
+
+.field-block {
+  margin-top: 10px;
+  padding: 8px;
+  color: #fff;
+  background-color: #222;
+  border: 1px solid #666;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: background-color 0.2s ease;
+}
+
+.field-block:hover {
+  background-color: #333;
+}
+
+.field-block label {
+  margin-bottom: 4px;
+}
+
+.modal-footer {
+  padding: 10px 20px;
+  border-top: 1px solid #555;
+  display: flex;
+  justify-content: center;
+}
+
+.apply-btn {
+  padding: 10px 20px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.apply-btn:hover {
+  background-color: #444;
+}
+
+#close-manipulate-modal{
+  top: -1px;
+}
