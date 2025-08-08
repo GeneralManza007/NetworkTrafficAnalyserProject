@@ -139,7 +139,9 @@
 
 <div id="manipulate-tool-modal" class="hidden modal">
   <button id="close-manipulate-modal" class="close-btn">✖</button>
+  <input type="hidden" id="packetIndexSelect">
 
+  <div class="edit-fields">
     <div class="packet-selector">
       <label for="packetIndex">Select Packet:</label>
       <select id="packetIndex"></select>
@@ -173,6 +175,7 @@
     <div class="field-block">
       <label for="editPayload">Payload:</label>
       <textarea id="editPayload"></textarea>
+    </div>
     </div>
 
     <div class="modal-footer">
@@ -248,6 +251,12 @@
 </div>
 <div id="blacklist-alert-box" class="hidden">⚠ Blacklist Match Found!</div>
 <div id="signature-alert-box" class="hidden">⚠ Signature Match Found</div>
+<div id="manipulate-success-box" class="hidden">✅ Packet Edited Successfully</div>
+
+<div id="packet-action-menu" class="hidden">
+  <button id="packet-edit-btn">✏ Edit</button>
+  <button id="packet-delete-btn">🗑 Delete</button>
+</div>
 
   <script src="{{url_for('static', filename='NetworkTrafficAnalyser.js') }}"></script>
 </body>
