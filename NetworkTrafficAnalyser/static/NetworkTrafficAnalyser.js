@@ -2,13 +2,19 @@ let globalPacketData = [];
 const blockedIPs = new Set();
 const blockedSignatures = new Set();
 
+let selectedPacketIndex = null;
+const actionMenu = document.getElementById("packet-action-menu");
+const editBtn = document.getElementById("packet-edit-btn");
+const deleteBtn = document.getElementById("packet-delete-btn");
+
 function renderPackets(data) {
   const tableBody = document.getElementById('packet-table');
   const packetCount = document.getElementById('packet-count');
   tableBody.innerHTML = '';
   packetCount.textContent = data.length;
 
-  data.slice().reverse().forEach(packet => {
+  data.slice().reverse().forEach((packet, reversedIndex) => {
+    const actualIndex = data.length - 1 - reversedIndex;
     const row = document.createElement('tr');
     const fullPayload = packet.payload ? sanitize(packet.payload) : '';
     const shortPayload = fullPayload.length > 30 ? fullPayload.slice(0, 30) + '...' : fullPayload;
@@ -18,13 +24,49 @@ function renderPackets(data) {
       <td>${packet.src}</td>
       <td>${packet.src_port || 'Unknown Src Port'}</td>
       <td>${packet.dst}</td>
-      <td>${packet.dst_port || 'Unkown Dest Port'}</td>
+      <td>${packet.dst_port || 'Unknown Dest Port'}</td>
       <td>${packet.proto}</td>
       <td title="${fullPayload}">${shortPayload || 'n/a'}</td>
     `;
+
+    row.addEventListener("click", (e) => {
+      e.stopPropagation(); 
+      selectedPacketIndex = actualIndex;
+      showPacketActionMenu(row);
+    });
+
     tableBody.appendChild(row);
   });
 }
+
+function showPacketActionMenu(rowElement) {
+  const rect = rowElement.getBoundingClientRect();
+  actionMenu.style.top = `${rect.top + window.scrollY - actionMenu.offsetHeight - 5}px`;
+  actionMenu.style.left = `${rect.left + window.scrollX + rect.width / 2 - 50}px`;
+  actionMenu.classList.remove("hidden");
+}
+
+editBtn.addEventListener("click", () => {
+  if (selectedPacketIndex !== null) {
+    openManipulateModal(selectedPacketIndex);
+    actionMenu.classList.add("hidden");
+  }
+});
+
+deleteBtn.addEventListener("click", () => {
+  if (selectedPacketIndex !== null) {
+    globalPacketData.splice(selectedPacketIndex, 1);
+    renderPackets(applyFilters(globalPacketData));
+    showToast("Packet deleted successfully.", "danger");
+    actionMenu.classList.add("hidden");
+  }
+});
+
+// Hide menu when clicking outside
+document.addEventListener("click", () => {
+  actionMenu.classList.add("hidden");
+});
+
 
 function sanitize(str) {
   return str
@@ -1532,9 +1574,32 @@ applyEditsBtn.addEventListener("click", () => {
   pkt.dst_port = Number(document.getElementById("editDstPort").value);
   pkt.payload = document.getElementById("editPayload").value;
 
-  renderPackets(applyFilters(globalPacketData)); // Refresh table
-  alert("Packet updated successfully.");
+  renderPackets(applyFilters(globalPacketData));
   manipulateModal.classList.add("hidden");
+
+  const successBox = document.getElementById("manipulate-success-box");
+  successBox.classList.remove("hidden");
+  successBox.classList.add("show");
+
+  setTimeout(() => {
+    successBox.classList.remove("show");
+    setTimeout(() => successBox.classList.add("hidden"), 400);
+  }, 3000);
 });
 
 makeModalDraggable(manipulateModal);
+
+function openManipulateModal(index) {
+  const pkt = globalPacketData[index];
+  if (!pkt) return;
+
+  document.getElementById("editSrc").value = pkt.src || '';
+  document.getElementById("editDst").value = pkt.dst || '';
+  document.getElementById("editProto").value = pkt.proto || '';
+  document.getElementById("editSrcPort").value = pkt.src_port || '';
+  document.getElementById("editDstPort").value = pkt.dst_port || '';
+  document.getElementById("editPayload").value = pkt.payload || '';
+  document.getElementById("packetIndexSelect").value = index;
+
+  manipulateModal.classList.remove("hidden");
+}
