@@ -1,6 +1,9 @@
 let globalPacketData = [];
 const blockedIPs = new Set();
 const blockedSignatures = new Set();
+let editedPackets = {};
+let isEditingPacket = false;
+let selectedPacketId = null
 
 let selectedPacketIndex = null;
 const actionMenu = document.getElementById("packet-action-menu");
@@ -8,6 +11,8 @@ const editBtn = document.getElementById("packet-edit-btn");
 const deleteBtn = document.getElementById("packet-delete-btn");
 
 function renderPackets(data) {
+   console.log("🧠 renderPackets FIRST ROW:", data[0]);
+  console.log("🔄 renderPackets called with", data.length, "packets");
   const tableBody = document.getElementById('packet-table');
   const packetCount = document.getElementById('packet-count');
   tableBody.innerHTML = '';
@@ -15,6 +20,8 @@ function renderPackets(data) {
 
   data.slice().reverse().forEach((packet, reversedIndex) => {
     const actualIndex = data.length - 1 - reversedIndex;
+    console.log("📦 Rendering packet", actualIndex, packet);
+
     const row = document.createElement('tr');
     const fullPayload = packet.payload ? sanitize(packet.payload) : '';
     const shortPayload = fullPayload.length > 30 ? fullPayload.slice(0, 30) + '...' : fullPayload;
@@ -31,13 +38,15 @@ function renderPackets(data) {
 
     row.addEventListener("click", (e) => {
       e.stopPropagation(); 
-      selectedPacketIndex = actualIndex;
+      selectedPacketId = packet.id;  // Store the selected packet ID
+      console.log("➡️ Row clicked, selectedPacketId =", selectedPacketId);
       showPacketActionMenu(row);
     });
 
     tableBody.appendChild(row);
   });
 }
+
 
 function showPacketActionMenu(rowElement) {
   const rect = rowElement.getBoundingClientRect();
@@ -47,26 +56,28 @@ function showPacketActionMenu(rowElement) {
 }
 
 editBtn.addEventListener("click", () => {
-  if (selectedPacketIndex !== null) {
-    openManipulateModal(selectedPacketIndex);
-    actionMenu.classList.add("hidden");
+  if (!selectedPacketId) {
+    console.warn("⚠️ No packet selected for editing");
+    return;
   }
+
+  openManipulateModalById(selectedPacketId);
+  actionMenu.classList.add("hidden");
 });
+  
 
 deleteBtn.addEventListener("click", () => {
-  if (selectedPacketIndex !== null) {
-    globalPacketData.splice(selectedPacketIndex, 1);
+  if (selectedPacketId) {
+    globalPacketData = globalPacketData.filter(pkt => pkt.id !== selectedPacketId);
     renderPackets(applyFilters(globalPacketData));
     showToast("Packet deleted successfully.", "danger");
     actionMenu.classList.add("hidden");
   }
 });
 
-// Hide menu when clicking outside
 document.addEventListener("click", () => {
   actionMenu.classList.add("hidden");
 });
-
 
 function sanitize(str) {
   return str
@@ -75,19 +86,31 @@ function sanitize(str) {
     .replace(/>/g, "&gt;");
 }
 
-
 function fetchPackets() {
   fetch('/api/packets')
     .then(response => response.json())
     .then(data => {
-      globalPacketData = data.filter(pkt => 
-        !blockedIPs.has(pkt.src) && !blockedIPs.has(pkt.dst)
-      );
-      const filteredData = applyFilters(globalPacketData);
-      renderPackets(filteredData);
+
+      globalPacketData = data
+        .filter(pkt =>
+          !blockedIPs.has(pkt.src) && !blockedIPs.has(pkt.dst)
+        )
+        .map((pkt, index) => {
+          // ✅ Assign ID if missing
+          if (!pkt.id) {
+            pkt.id = `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+          }
+          return pkt;
+        });
+
+      console.log("🧠 Packets after ID assignment:", globalPacketData);
+
+      renderPackets(applyFilters(globalPacketData));
     })
     .catch(error => console.error('Error fetching packets:', error));
 }
+
+
 
 
 document.getElementById('protocolFilter').addEventListener('input', fetchPackets);
@@ -1528,6 +1551,7 @@ const packetIndexSelect = document.getElementById("packetIndex");
 const applyEditsBtn = document.getElementById("apply-packet-edits");
 
 manipulateBtn.addEventListener("click", () => {
+  isEditingPacket = true;
   populatePacketOptions();
   manipulateModal.classList.remove("hidden");
 });
@@ -1563,9 +1587,19 @@ function loadPacketIntoForm(index) {
 }
 
 applyEditsBtn.addEventListener("click", () => {
-  const i = Number(packetIndexSelect.value);
-  const pkt = globalPacketData[i];
-  if (!pkt) return;
+  if (!selectedPacketId) {
+    console.error("❌ No selectedPacketId during apply");
+    return;
+  }
+
+  const pkt = globalPacketData.find(p => p.id === selectedPacketId);
+
+  console.log("✏️ Applying edits to packet:", selectedPacketId, pkt);
+
+  if (!pkt) {
+    console.error("❌ Packet not found for ID", selectedPacketId);
+    return;
+  }
 
   pkt.src = document.getElementById("editSrc").value;
   pkt.dst = document.getElementById("editDst").value;
@@ -1574,8 +1608,12 @@ applyEditsBtn.addEventListener("click", () => {
   pkt.dst_port = Number(document.getElementById("editDstPort").value);
   pkt.payload = document.getElementById("editPayload").value;
 
+  console.log("✅ Packet after edit:", pkt);
+
   renderPackets(applyFilters(globalPacketData));
+
   manipulateModal.classList.add("hidden");
+  isEditingPacket = false;
 
   const successBox = document.getElementById("manipulate-success-box");
   successBox.classList.remove("hidden");
@@ -1587,11 +1625,19 @@ applyEditsBtn.addEventListener("click", () => {
   }, 3000);
 });
 
+
+
 makeModalDraggable(manipulateModal);
 
-function openManipulateModal(index) {
-  const pkt = globalPacketData[index];
-  if (!pkt) return;
+function openManipulateModalById(packetId) {
+  const pkt = globalPacketData.find(p => p.id === packetId);
+
+  console.log("📝 Opening edit modal for packet:", packetId, pkt);
+
+  if (!pkt) {
+    console.error("❌ Packet not found for modal:", packetId);
+    return;
+  }
 
   document.getElementById("editSrc").value = pkt.src || '';
   document.getElementById("editDst").value = pkt.dst || '';
@@ -1599,7 +1645,6 @@ function openManipulateModal(index) {
   document.getElementById("editSrcPort").value = pkt.src_port || '';
   document.getElementById("editDstPort").value = pkt.dst_port || '';
   document.getElementById("editPayload").value = pkt.payload || '';
-  document.getElementById("packetIndexSelect").value = index;
 
   manipulateModal.classList.remove("hidden");
 }
